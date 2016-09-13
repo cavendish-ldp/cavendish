@@ -36,8 +36,8 @@ public class LdpTestCase extends BaseTestCase {
     String resource = RestAssured
         .given()
             .header(HttpHeaders.CONTENT_TYPE, RDFFormat.TURTLE.getDefaultMIMEType())
-            .header(HttpHeaders.LINK, Link.fromUri(cavendish.ldp.api.Vocabulary.RESOURCE).rel(cavendish.ldp.api.Link.REL_TYPE).build().toString())
-            .body("<> a <http://example.com/ResourceInteraction> .".getBytes())
+            .header(HttpHeaders.LINK, Link.fromUri(cavendish.ldp.api.Vocabulary.RDF_SOURCE).rel(cavendish.ldp.api.Link.REL_TYPE).build().toString())
+            .body("<> a <http://example.com/ResourceInteraction> ; <http://www.w3.org/ns/ldp#MemberSubject> <> .".getBytes())
         .expect()
             .statusCode(HttpStatusSuccessMatcher.isSuccessful())
             .header(HttpHeaders.LOCATION, CoreMatchers.notNullValue())
@@ -57,7 +57,7 @@ public class LdpTestCase extends BaseTestCase {
     final String containerAsResource = RestAssured
         .given()
             .header(HttpHeaders.CONTENT_TYPE, RDFFormat.TURTLE.getDefaultMIMEType())
-            .header(HttpHeaders.LINK, Link.fromUri(cavendish.ldp.api.Vocabulary.RESOURCE).rel(cavendish.ldp.api.Link.REL_TYPE).build().toString())
+            .header(HttpHeaders.LINK, Link.fromUri(cavendish.ldp.api.Vocabulary.RDF_SOURCE).rel(cavendish.ldp.api.Link.REL_TYPE).build().toString())
             .body("<> a <http://www.w3.org/ns/ldp#BasicContainer> .".getBytes())
         .expect()
             .statusCode(HttpStatusSuccessMatcher.isSuccessful())
@@ -149,7 +149,48 @@ public class LdpTestCase extends BaseTestCase {
     Map<String, String> options = commonOptions();
     options.put("direct", "true");
     options.put("server", container);
-    //options.put("memberResource", memberResource(container));
+    options.put("memberResource", memberResource(container));
+    System.err.println("You can find LDP Test Suite outputs at " + options.get("output"));
+    testSuite = new LdpTestSuite(options);
+    testSuite.run();
+    Assert.assertTrue("ldp-testsuite finished with errors", (testSuite.getStatus() & TESTNG_STATUS_HAS_FAILURE) == 0);
+    Assert.assertTrue("ldp-testsuite is empty - no test run", (testSuite.getStatus() & TESTNG_STATUS_HAS_NO_TEST) == 0);
+    if ((testSuite.getStatus() & TESTNG_STATUS_HAS_SKIPPED) != 0) {
+        log.warn("ldp-testsuite has skipped some tests");
+    }
+  }
+
+  @Test
+  public void testIndirectContainer() {
+    String rdf = "<> a <http://example.com/ContainerInteraction> ;\n" +
+                 " <" + cavendish.ldp.api.Vocabulary.MEMBERSHIP_RESOURCE.toString() + "> <> ;\n" +
+                 " <" + cavendish.ldp.api.Vocabulary.HAS_MEMBER_RELATION.toString() + "> <" +
+                 cavendish.ldp.api.Vocabulary.LDP.resolve("#member").toString() + "> ;\n" +
+                 " <" + cavendish.ldp.api.Vocabulary.INSERTED_CONTENT_RELATION.toString() + "> <" +
+                 cavendish.ldp.api.Vocabulary.LDP.resolve("#MemberSubject").toString() + "> .";
+    System.err.print(rdf);
+    String container = RestAssured
+        .given()
+            .header(HttpHeaders.CONTENT_TYPE, RDFFormat.TURTLE.getDefaultMIMEType())
+            .header(HttpHeaders.LINK, Link.fromUri(cavendish.ldp.api.Vocabulary.INDIRECT_CONTAINER).rel(cavendish.ldp.api.Link.REL_TYPE).build().toString())
+            .body(rdf.getBytes())
+        .expect()
+            .statusCode(HttpStatusSuccessMatcher.isSuccessful())
+            .header(HttpHeaders.LOCATION, CoreMatchers.notNullValue())
+        .post(getBaseUrl())
+            .getHeader(HttpHeaders.LOCATION);
+
+    if (container == null) { // just stop if we can't do member resources
+      throw new RuntimeException("no resource created from POST to " + getBaseUrl());
+    } else {
+      log.info("direct container: <{}>", container);
+    }
+    RestAssured.reset();
+
+    Map<String, String> options = commonOptions();
+    options.put("indirect", "true");
+    options.put("server", container);
+    options.put("memberResource", memberResource(container));
     System.err.println("You can find LDP Test Suite outputs at " + options.get("output"));
     testSuite = new LdpTestSuite(options);
     testSuite.run();

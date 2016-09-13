@@ -66,9 +66,10 @@ public class SubjectStatementsQueryTask extends AbstractApiTask<Iterator<Stateme
         if (explicitContains) this.prefs.acknowledge(true);
       }
       if (explicitMembers || (implicitMembers && !preferMinimal)) {
-        Iterator<Statement> directSynthetic = DirectContainerInsertedTriples.call(subject, connection);
+        Iterator<Statement> directSynthetic = new DirectContainerInsertedTriples().apply(subject, connection);
+        Iterator<Statement> indirectSynthetic = new IndirectContainerInsertedTriples().apply(subject, connection);
         if (explicitMembers) this.prefs.acknowledge(true);
-        return new IteratorChain(buffer.iterate(), directSynthetic);
+        return new IteratorChain(new IteratorChain(buffer.iterate(), directSynthetic), indirectSynthetic);
       } else {
         if (preferMinimal) this.prefs.acknowledge(true);
         return buffer.iterate();

@@ -11,15 +11,17 @@ import org.openrdf.model.URI;
 import org.openrdf.query.QueryLanguage;
 import org.openrdf.query.TupleQueryResult;
 
-public class DirectContainerInsertedTriples implements BiFunction<URI, BigdataSailRepositoryConnection, Iterator<Statement>>{
+public class IndirectContainerInsertedTriples implements BiFunction<URI, BigdataSailRepositoryConnection, Iterator<Statement>>{
 
   private static final String SPARQL =
       "SELECT ?memberRelation ?member \n" +
       "WHERE { \n" +
-      "  GRAPH <info:cavendish/> { ?container <http://www.iana.org/assignments/link-relations/type> <http://www.w3.org/ns/ldp#DirectContainer> } .\n" +
+      "  GRAPH <info:cavendish/> { ?container <http://www.iana.org/assignments/link-relations/type> <http://www.w3.org/ns/ldp#IndirectContainer> } .\n" +
       "  ?container <http://www.w3.org/ns/ldp#membershipResource> <%s> .\n" +
-      "  ?container <http://www.w3.org/ns/ldp#contains> ?member .\n" +
-      "  ?container <http://www.w3.org/ns/ldp#hasMemberRelation> ?memberRelation" +
+      "  ?container <http://www.w3.org/ns/ldp#contains> ?proxy .\n" +
+      "  ?container <http://www.w3.org/ns/ldp#insertedContentRelation> ?proxyRel .\n" +
+      "  ?container <http://www.w3.org/ns/ldp#hasMemberRelation> ?memberRelation .\n" +
+      "  ?proxy ?proxyRel ?member" +
       "}";
 
   public Iterator<Statement> apply(URI subject, BigdataSailRepositoryConnection connection) {

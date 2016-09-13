@@ -12,7 +12,9 @@ public interface Vocabulary {
   URI DIRECT_CONTAINER = new URIImpl(cavendish.ldp.api.Vocabulary.DIRECT_CONTAINER.toString());
   URI IANA_TYPE = new URIImpl(cavendish.ldp.api.Vocabulary.IANA_TYPE.toString());
   URI INDIRECT_CONTAINER = new URIImpl(cavendish.ldp.api.Vocabulary.INDIRECT_CONTAINER.toString());
+  URI INSERTED_CONTENT_RELATION = new URIImpl(cavendish.ldp.api.Vocabulary.INSERTED_CONTENT_RELATION.toString());
   URI INTERNAL_CONTEXT = new URIImpl(cavendish.ldp.api.Vocabulary.INTERNAL_CONTEXT.toString());
+  URI MEMBERSHIP_RESOURCE = new URIImpl(cavendish.ldp.api.Vocabulary.MEMBERSHIP_RESOURCE.toString());
   URI RDF_SOURCE = new URIImpl(cavendish.ldp.api.Vocabulary.RDF_SOURCE.toString());
   URI RESOURCE = new URIImpl(cavendish.ldp.api.Vocabulary.RESOURCE.toString());
   String DEFAULT_NS = cavendish.ldp.api.Vocabulary.DEFAULT_NS;

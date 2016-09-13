@@ -14,6 +14,7 @@ import org.openrdf.rio.RDFHandler;
 
 import cavendish.blazegraph.ldp.Vocabulary;
 import cavendish.blazegraph.rdf.AddStatementHandler;
+import cavendish.blazegraph.rdf.ConstraintViolationException;
 
 import com.bigdata.rdf.sail.BigdataSailRepositoryConnection;
 import com.bigdata.rdf.task.AbstractApiTask;
@@ -63,7 +64,7 @@ public class InsertRdfSourceTask extends AbstractApiTask<Long> implements Mutati
     handler.startRDF();
     try {
       boolean requiresType = true;
-      byte ldpClassSwitches = 0;
+      short ldpClassSwitches = 0;
       while (this.statementIterator.hasNext()) {
         Statement next = this.statementIterator.next();
         Resource statementSubject = resolve(this.subject, next.getSubject());
@@ -86,9 +87,14 @@ public class InsertRdfSourceTask extends AbstractApiTask<Long> implements Mutati
           if (Vocabulary.BASIC_CONTAINER.equals(next.getObject())) ldpClassSwitches |= LDP_BASIC_MASK;
           if (Vocabulary.DIRECT_CONTAINER.equals(next.getObject())) ldpClassSwitches |= LDP_DIRECT_MASK;
           if (Vocabulary.INDIRECT_CONTAINER.equals(next.getObject())) ldpClassSwitches |= LDP_INDIRECT_MASK;
-          if (Vocabulary.INDIRECT_CONTAINER.equals(next.getObject())) ldpClassSwitches |= LDP_INDIRECT_MASK;
           if (Vocabulary.RESOURCE.equals(next.getObject())) ldpClassSwitches |= LDP_RESOURCE_MASK;
           if (Vocabulary.RDF_SOURCE.equals(next.getObject())) ldpClassSwitches |= LDP_RDFSOURCE_MASK;
+        }
+        if (next.getPredicate().equals(Vocabulary.MEMBERSHIP_RESOURCE)) {
+          ldpClassSwitches |= LDP_MEMBERSHIP_RESOURCE_MASK;
+        }
+        if (next.getPredicate().equals(Vocabulary.INSERTED_CONTENT_RELATION)) {
+          ldpClassSwitches |= LDP_INSERTED_CONTENT_RELATION_MASK;
         }
         //TODO check to make sure internal context only
         if (next.getContext() != null) {
@@ -127,11 +133,21 @@ public class InsertRdfSourceTask extends AbstractApiTask<Long> implements Mutati
     }
   }
 
-  public void validateContainerModel(URI subject, byte ldpClassSwitches) {
+  public void validateContainerModel(URI subject, short ldpClassSwitches) throws ConstraintViolationException {
     // no validations for Basic
     if ((ldpClassSwitches & LDP_BASIC_MASK) == LDP_BASIC_MASK) return;
-    if ((ldpClassSwitches & LDP_DIRECT_MASK) == LDP_DIRECT_MASK) return;
-    if ((ldpClassSwitches & LDP_INDIRECT_MASK) == LDP_INDIRECT_MASK) return;
+    if ((ldpClassSwitches & LDP_DIRECT_MASK) == LDP_DIRECT_MASK) {
+      if ((ldpClassSwitches & LDP_MEMBERSHIP_RESOURCE_MASK) != LDP_MEMBERSHIP_RESOURCE_MASK) {
+        throw new ConstraintViolationException("non-BasicContainer must have a ldp:membershipResource");
+      }
+      return;
+    };
+    if ((ldpClassSwitches & LDP_INDIRECT_MASK) == LDP_INDIRECT_MASK) {
+      if ((ldpClassSwitches & LDP_INSERTED_CONTENT_RELATION_MASK) != LDP_INSERTED_CONTENT_RELATION_MASK) {
+        throw new ConstraintViolationException("IndirectContainer must have a ldp:insertedContentRelation");
+      }
+      return;
+    }
   }
   @Override
   public boolean isReadOnly() {
