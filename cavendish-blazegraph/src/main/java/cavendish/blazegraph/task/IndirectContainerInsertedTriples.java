@@ -32,7 +32,7 @@ public class IndirectContainerInsertedTriples implements BiFunction<URI, Bigdata
     TupleQueryResult results = parsedQuery.evaluate();
     return new SyntheticStatementIterator(subject, results, "memberRelation", "member");
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      throw new java.util.concurrent.CompletionException(e);
     }
   }
 }

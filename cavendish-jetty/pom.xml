@@ -26,6 +26,28 @@
         <groupId>org.apache.felix</groupId>
         <artifactId>maven-bundle-plugin</artifactId>
       </plugin>
+		<plugin>
+		  <groupId>org.codehaus.mojo</groupId>
+		  <artifactId>exec-maven-plugin</artifactId>
+		  <version>1.5.0</version>
+		  <executions>
+		    <execution>
+		      <goals>
+		        <goal>java</goal>
+		      </goals>
+		    </execution>
+		  </executions>
+		  <configuration>
+		  <mainClass>cavendish.jetty.App</mainClass>
+        <cleanupDaemonThreads>false</cleanupDaemonThreads>
+        <environmentVariables>-Dcom.bigdata.rdf.sail.webapp.ConfigParams.propertyFile=src/main/webapp/WEB-INF/RWStore.properties</environmentVariables>
+		    <arguments>
+		      <argument>8080</argument>
+		      <argument>kb</argument>
+		      <argument>src/main/webapp/WEB-INF/RWStore.properties</argument>
+		    </arguments>
+		  </configuration>
+    </plugin>
     </plugins>
   </build>
   <dependencies>
@@ -42,23 +64,48 @@
     <dependency>
       <groupId>com.blazegraph</groupId>
       <artifactId>bigdata-core</artifactId>
-      <scope>test</scope>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-server</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-http</artifactId>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-rewrite</artifactId>
+      <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>javax.servlet</groupId>
+          <artifactId>javax.servlet-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-util</artifactId>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-webapp</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+        <groupId>javax.ws.rs</groupId>
+        <artifactId>javax.ws.rs-api</artifactId>
+        <version>2.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.resteasy</groupId>
+      <artifactId>resteasy-jaxrs</artifactId>
+      <version>3.0.8.Final</version>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
