@@ -40,7 +40,7 @@
 		  <configuration>
 		  <mainClass>cavendish.jetty.App</mainClass>
         <cleanupDaemonThreads>false</cleanupDaemonThreads>
-        <environmentVariables>-Dcom.bigdata.rdf.sail.webapp.ConfigParams.propertyFile=src/main/webapp/WEB-INF/RWStore.properties</environmentVariables>
+        <environmentVariables>-Dcom.bigdata.rdf.sail.webapp.ConfigParams.propertyFile=src/main/webapp/WEB-INF/RWStore.properties -Dcom.bigdata.journal.AbstractJournal.file=target/bg.jnl</environmentVariables>
 		    <arguments>
 		      <argument>8080</argument>
 		      <argument>kb</argument>
@@ -106,6 +106,12 @@
       <groupId>org.jboss.resteasy</groupId>
       <artifactId>resteasy-jaxrs</artifactId>
       <version>3.0.8.Final</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>apache-jena-libs</artifactId>
+      <version>3.1.0</version>
+      <type>pom</type>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
