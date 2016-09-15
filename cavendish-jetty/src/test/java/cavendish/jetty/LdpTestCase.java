@@ -1,5 +1,6 @@
 package cavendish.jetty;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -74,15 +75,17 @@ public class LdpTestCase extends BaseTestCase {
     return containerAsResource;
   }
 
-  private Map<String,String> commonOptions() {
+  private Map<String,String> commonOptions(String containerType, String container) {
     Map<String, String> options = new HashMap<>();
-    options.put("server", getBaseUrl().toString());
+    options.put("server", container);
+    options.put("memberResource", memberResource(container));
     options.put("httpLogging", null);
     options.put("skipLogging", null);
     options.put("excludedGroups", LdpTest.MAY);
     // options.put("includedGroups",  LdpTest.MUST + "," + LdpTest.SHOULD)
-    String reportPath = new java.io.File("target").getAbsolutePath();
+    String reportPath = new File(new File("target"), containerType).getAbsolutePath();
     options.put("output", reportPath);
+    options.put(containerType, "true");
     options.put("cont-res", containerAsResource());
     return options;
   }
@@ -107,10 +110,7 @@ public class LdpTestCase extends BaseTestCase {
     }
     RestAssured.reset();
 
-    Map<String, String> options = commonOptions();
-    options.put("basic", "true");
-    options.put("server", container);
-    //options.put("memberResource", memberResource(container));
+    Map<String, String> options = commonOptions("basic", container);
     System.err.println("You can find LDP Test Suite outputs at " + options.get("output"));
     testSuite = new LdpTestSuite(options);
     testSuite.run();
@@ -146,10 +146,7 @@ public class LdpTestCase extends BaseTestCase {
     }
     RestAssured.reset();
 
-    Map<String, String> options = commonOptions();
-    options.put("direct", "true");
-    options.put("server", container);
-    options.put("memberResource", memberResource(container));
+    Map<String, String> options = commonOptions("direct", container);
     System.err.println("You can find LDP Test Suite outputs at " + options.get("output"));
     testSuite = new LdpTestSuite(options);
     testSuite.run();
@@ -183,14 +180,11 @@ public class LdpTestCase extends BaseTestCase {
     if (container == null) { // just stop if we can't do member resources
       throw new RuntimeException("no resource created from POST to " + getBaseUrl());
     } else {
-      log.info("direct container: <{}>", container);
+      log.info("indirect container: <{}>", container);
     }
     RestAssured.reset();
 
-    Map<String, String> options = commonOptions();
-    options.put("indirect", "true");
-    options.put("server", container);
-    options.put("memberResource", memberResource(container));
+    Map<String, String> options = commonOptions("indirect", container);
     System.err.println("You can find LDP Test Suite outputs at " + options.get("output"));
     testSuite = new LdpTestSuite(options);
     testSuite.run();

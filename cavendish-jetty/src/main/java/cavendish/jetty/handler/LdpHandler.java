@@ -112,6 +112,7 @@ public class LdpHandler extends AbstractHandler {
       } catch (Exception e) {
         handleException(e, baseRequest, request, response);
         LOG.error(e.getMessage(),e);
+        e.printStackTrace();
         return;
       }
       if (request.getMethod().equals("DELETE")) {
@@ -186,9 +187,11 @@ public class LdpHandler extends AbstractHandler {
 
   protected void ensureRoot(HttpServletRequest request, String root) throws Exception {
     StringBuilder b = createContext(request);
-    b.append(root);
+    if (root != null) b.append(root);
     String rootResource = b.toString();
-    if (HttpServletResponse.SC_NOT_FOUND == resourceStatus(rootResource, 0L)) {
+    int status = resourceStatus(rootResource, 0L);
+
+    if (HttpServletResponse.SC_NOT_FOUND == status) {
       URIImpl subject = new URIImpl(rootResource);
       BufferStatementsHandler buffer = new BufferStatementsHandler();
       buffer.handleStatement(new ContextStatementImpl(subject, RDF.TYPE, Vocabulary.RDF_SOURCE, null));
@@ -457,13 +460,18 @@ public class LdpHandler extends AbstractHandler {
     return buffer;
   }
 
+  private static boolean wrapperException(Throwable t) {
+    if (t.getCause() == null) return false;
+    if (t instanceof java.util.concurrent.ExecutionException) return true;
+    if (t instanceof java.util.concurrent.CompletionException) return true;
+    if (t instanceof RuntimeException) return true;
+    return false;
+  }
   protected void handleException(Exception e, Request baseRequest, HttpServletRequest request, HttpServletResponse response) {
-    Throwable t;
-    if (e instanceof java.util.concurrent.ExecutionException) {
-      t = e.getCause();
-    } else {
-      t = e;
-    }
+    Throwable t = e;
+    while(wrapperException(t)) t = t.getCause();
+    t.printStackTrace();
+
     try {
       if (t instanceof NotAllowedException) {
         LOG.info(t.getMessage(),t);
@@ -514,13 +522,19 @@ public class LdpHandler extends AbstractHandler {
   {
     super.doStart();
     LOG.debug("starting {}", this);
-    indexManager = (IIndexManager) NanoSparqlServer.getWebApp(getServer()).getAttribute(IIndexManager.class.getName());
+
+    if (indexManager == null) {
+      indexManager = (IIndexManager) NanoSparqlServer.getWebApp(getServer()).getAttribute(IIndexManager.class.getName());
+    }
+
+    if (indexManager == null) {
+      LOG.warn("No IndexManager available for {}", this);
+      throw new Exception("needs indexManager to run LdpHandler");
+    }
     com.bigdata.journal.Journal j = (com.bigdata.journal.Journal)indexManager;
     LOG.info("indexManager readOnly {}", Boolean.toString(j.isReadOnly()));
     IBufferStrategy strat = j.getBufferStrategy();
     LOG.info("buffer strategy {} readOnly {}", strat.getClass().getName(), Boolean.toString(strat.isReadOnly()));
-
-    if (indexManager == null) LOG.warn("No IndexManager available for {}", this);
     Properties props = new Properties();
     props.setProperty(AbstractTripleStore.Options.QUADS, Boolean.toString(true));
     props.setProperty(AbstractTripleStore.Options.AXIOMS_CLASS, NoAxioms.class.getName());
@@ -721,7 +735,7 @@ public class LdpHandler extends AbstractHandler {
     if ("https".equals(request.getScheme()) && 443 != request.getServerPort()) {
       b.append(':').append(Integer.toString(request.getServerPort()));
     }
-    b.append(request.getContextPath());
+    if (request.getContextPath() != null) b.append(request.getContextPath());
     return b;
   }
 

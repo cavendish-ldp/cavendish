@@ -1,24 +1,22 @@
 package cavendish.jetty;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
 
 import org.junit.Test;
+import org.w3.ldp.testsuite.matcher.HttpStatusSuccessMatcher;
+
+import com.jayway.restassured.RestAssured;
 
 public class StartUpTestCase extends BaseTestCase {
 
   @Test
   public void testServerStartup() throws IOException {
+    assertTrue(this.server.isStarted());
     URL url = getBaseUrl();
-    URLConnection connection = url.openConnection();
-    HttpURLConnection httpConnection = (HttpURLConnection) connection;
-
-    int code = httpConnection.getResponseCode();
-    assertEquals(204, code);
+    RestAssured.expect().statusCode(HttpStatusSuccessMatcher.isSuccessful()).get(url);
   }
 
 }

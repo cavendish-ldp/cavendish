@@ -1,13 +1,17 @@
 package cavendish.jetty;
 
+import java.io.FileInputStream;
 import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
+import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.handler.DefaultHandler;
+import org.eclipse.jetty.server.handler.HandlerList;
 import org.openrdf.repository.Repository;
 
 import com.bigdata.journal.IIndexManager;
@@ -16,6 +20,8 @@ import com.bigdata.rdf.sail.BigdataSailRepository;
 import com.bigdata.rdf.sail.webapp.NanoSparqlServer;
 import com.bigdata.rdf.store.AbstractTripleStore;
 import com.bigdata.util.config.NicUtil;
+
+import cavendish.jetty.handler.LdpHandler;
 
 public class App implements Runnable
 {
@@ -50,8 +56,7 @@ public class App implements Runnable
     try {
       server.start();
       NanoSparqlServer.awaitServerStart(server);
-      port = ((ServerConnector)server.getConnectors()[0])
-          .getLocalPort();
+      port = ((ServerConnector)server.getConnectors()[0]).getLocalPort();
 
       boolean loopbackOk = true;
       String hostAddr = NicUtil.getIpAddress("default.nic",
@@ -70,6 +75,7 @@ public class App implements Runnable
       server.join();
     } catch (Throwable t) {
       stop();
+      t.printStackTrace();
       log.error(t, t);
     }
 
@@ -90,15 +96,19 @@ public class App implements Runnable
 
   public static void main( String[] args ) throws Exception
   {
-    final int port = 0; // random port.
+    final int port = Integer.parseInt(args[0]); // random port.
 
     Properties props = new Properties();
-    props.setProperty(AbstractTripleStore.Options.QUADS, Boolean.toString(true));
-    props.setProperty(AbstractTripleStore.Options.AXIOMS_CLASS, "com.bigdata.rdf.store.AbstractTripleStore.NoAxioms");
-    //props.setProperty(AbstractTripleStore.Options.STATEMENT_IDENTIFIERS, Boolean.toString(false));
-    //props.setProperty(AbstractTripleStore.Options.TRIPLES_MODE_WITH_PROVENANCE, Boolean.toString(true));
-    props.setProperty(BigdataSail.Options.TRUTH_MAINTENANCE,Boolean.toString(false));
-
+    String configPath = args[2];
+    if (configPath != null) {
+      props.load(new FileInputStream(configPath));
+    } else {
+      props.setProperty(AbstractTripleStore.Options.QUADS, Boolean.toString(true));
+      props.setProperty(AbstractTripleStore.Options.AXIOMS_CLASS, "com.bigdata.rdf.store.AbstractTripleStore.NoAxioms");
+      //props.setProperty(AbstractTripleStore.Options.STATEMENT_IDENTIFIERS, Boolean.toString(false));
+      //props.setProperty(AbstractTripleStore.Options.TRIPLES_MODE_WITH_PROVENANCE, Boolean.toString(true));
+      props.setProperty(BigdataSail.Options.TRUTH_MAINTENANCE,Boolean.toString(false));
+    }
     final BigdataSail sail = new BigdataSail(props);
     final Repository repository = new BigdataSailRepository(sail);
     repository.initialize();
@@ -107,14 +117,17 @@ public class App implements Runnable
 
       final IIndexManager indexManager = sail.getIndexManager();
 
-      final Map<String, String> initParams = new LinkedHashMap<String, String>();
-
-      Thread t = new Thread(new App(port, indexManager, initParams));
-      t.run();
+      LdpHandler handler = new LdpHandler(new String[]{""});
+      handler.setIndexManager(indexManager);
+      Server server = new Server(port);
+      HandlerList handlers = new HandlerList();
+      handlers.setHandlers(new Handler[] { handler, new DefaultHandler() });
+      server.setHandler(handler);
+      server.start();
+      server.join();
     } finally {
-
-      repository.shutDown();
-      sail.shutDown();
+      if (repository.isInitialized()) repository.shutDown();
+      if (sail.isOpen()) sail.shutDown();
       System.out.println("Halted.");
     }
   }

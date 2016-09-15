@@ -1,62 +1,76 @@
 package cavendish.jetty;
 
+import static org.junit.Assert.assertTrue;
+
 import java.io.File;
+import java.io.FileInputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.junit.Assume;
+import org.junit.Before;
 import org.junit.BeforeClass;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.handler.DefaultHandler;
+import org.eclipse.jetty.server.handler.HandlerList;
+import org.eclipse.jetty.util.thread.ThreadPool;
+import org.junit.After;
 import org.junit.AfterClass;
+import org.openrdf.repository.Repository;
 import org.openrdf.sail.SailException;
 
-import com.bigdata.journal.IBufferStrategy;
+import com.bigdata.journal.BufferMode;
+import com.bigdata.journal.IIndexManager;
 import com.bigdata.journal.Journal;
-import com.bigdata.journal.RWStrategy;
 import com.bigdata.rdf.sail.BigdataSail;
-import com.bigdata.rwstore.sector.MemStrategy;
+import com.bigdata.rdf.sail.BigdataSailRepository;
+
+import cavendish.jetty.handler.LdpHandler;
 
 public abstract class BaseTestCase {
-    private static ExecutorService pool = Executors.newCachedThreadPool();
+    //private static ExecutorService pool = Executors.newCachedThreadPool();
     static int port = 8888;
-    static App app = null;
-    static Thread server = null;
-    static BigdataSail sail = null;
-    @BeforeClass
-    public static void beforeAll() throws Exception {
+    Server server = null;
+    // if sail or repo are cleaned up in GC, they will shutdown, so must be members
+    BigdataSail sail = null;
+    Repository repository = null;
+    File journalPath = null;
+    @Before
+    public void beforeAll() throws Exception {
         final Properties props = new Properties();
-        new File("test.jnl").delete();
-        props.put("com.bigdata.journal.AbstractJournal.bufferMode","DiskRW"); // DiskRW,MemStore
-        props.put("com.bigdata.journal.AbstractJournal.file","test.jnl");
-        props.put("com.bigdata.journal.AbstractJournal.readOnly","false");
-        //sail = new BigdataSail(props);
-        //final Repository repository = new BigdataSailRepository(sail);
-        //repository.initialize();
-
-        /**
-        BigdataSailConnection c = sail.getConnection();
-        try {
-          org.junit.Assert.assertTrue("Connections are writeable", !c.isReadOnly());
-        } finally {
-          c.close();
-        }
-        **/
+        props.load(new FileInputStream("src/test/webapp/WEB-INF/RWStore.properties"));
+        //props.remove("com.bigdata.journal.AbstractJournal.file");
+        journalPath = new File(props.getProperty("com.bigdata.journal.AbstractJournal.file")).getAbsoluteFile();
+        journalPath.delete();
+        journalPath.createNewFile();
+        //props.setProperty("com.bigdata.journal.AbstractJournal.bufferMode", BufferMode.MemStore.toString());
         try {
 
-            final Journal indexManager = new Journal(props);
-            IBufferStrategy strat = indexManager.getBufferStrategy();
-            org.junit.Assert.assertTrue(strat instanceof RWStrategy);
+          sail = new BigdataSail(props);
+          repository = new BigdataSailRepository(sail);
+          repository.initialize();
 
-            final Map<String, String> initParams = new LinkedHashMap<String, String>();
-            //initParams.put("com.bigdata.rdf.sail.webapp.ConfigParams.propertyFile", "RWStore.properties");
-            //System.setProperty("com.bigdata.rdf.sail.webapp.ConfigParams.propertyFile", "RWStore.properties");
-            app = new App(port, indexManager, initParams);
-            server = new Thread(app);
-            pool.submit(server);
+          final IIndexManager indexManager = sail.getIndexManager();
+
+          final LdpHandler handler = new LdpHandler(new String[]{""});
+          handler.setIndexManager(indexManager);
+
+          HandlerList handlers = new HandlerList();
+          handlers.setHandlers(new Handler[] { handler, new DefaultHandler() });
+
+          this.server = new Server(port);
+          this.server.setHandler(handler);
+          this.server.setStopTimeout(100);
+          server.start();
+          assertTrue(((Journal)indexManager).getBufferStrategy().isOpen());
+          assertTrue(journalPath.exists());
         } finally {
 
         }
@@ -64,7 +78,7 @@ public abstract class BaseTestCase {
 
     protected URL getBaseUrl() {
       try {
-        return new URL("http://localhost:" + Integer.toString(app.port()) + "/ldp");
+        return new URL("http://localhost:" + Integer.toString(port) + "/");
       } catch (MalformedURLException e) {
         throw new RuntimeException("HTTP protocol not supperted?", e);
       }
@@ -79,10 +93,10 @@ public abstract class BaseTestCase {
       return targetDir;
     }
 
-    @AfterClass
-    public static void afterAll() throws SailException {
-	    if (server != null) server.interrupt();
+    @After
+    public void afterAll() throws Exception {
+	    if (server != null)  server.stop();
 	    if (sail != null) sail.shutDown();
-	    pool.shutdown();
-    }
+      journalPath.delete();
+   }
 }

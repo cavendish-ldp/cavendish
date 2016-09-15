@@ -111,18 +111,27 @@
     <Set name="handler">
       <New id="Handlers" class="org.eclipse.jetty.server.handler.HandlerCollection">
         <Set name="handlers">
-         <Array type="org.eclipse.jetty.server.Handler">
+         <Array type="org.eclipse.jetty.server.Handler"><!--
+           <Item>
+             <New id="DefaultHandler" class="org.eclipse.jetty.server.handler.DefaultHandler"/>
+           </Item> -->
+           <Item>
+             <New id="WebAppContext" class="org.eclipse.jetty.webapp.WebAppContext">
+             </New>
+           </Item>
            <Item>
              <New id="Contexts" class="org.eclipse.jetty.server.handler.ContextHandlerCollection">
 	             <Set name="handlers">
 	               <Array type="org.eclipse.jetty.server.Handler">
 	                 <Item>
 	                   <New id="context" class="org.eclipse.jetty.server.handler.ContextHandler">
+                       <Set name="contextPath">/ldp</Set>
+                       <Set name="resourceBase">src/test/webapp</Set>
 	                     <Set name="handler">
 	                       <New id="LdpHandler" class="cavendish.jetty.handler.LdpHandler">
 	                         <Arg>
                              <Array type="java.lang.String">
-	                             <Item>/ldp</Item>
+	                             <Item>/</Item>
 	                           </Array>
 	                         </Arg>
 	                       </New>
@@ -133,20 +142,11 @@
 	             </Set>
              </New>
            </Item>
-           <Item>
-             <New id="DefaultHandler" class="org.eclipse.jetty.server.handler.DefaultHandler"/>
-           </Item>
-           <Item>
-			       <New id="WebAppContext" class="org.eclipse.jetty.webapp.WebAppContext">
-			         <Set name="contextPath">/</Set>
-			         <Set name="resourceBase">/</Set>
-			       </New>
-           </Item>
          </Array>
         </Set>
       </New>
     </Set>
-<Call name="addConnector">
+  <Call name="addConnector">
     <Arg>
       <New class="org.eclipse.jetty.server.ServerConnector">
         <Arg name="server"><Ref refid="Server" /></Arg>

@@ -122,5 +122,17 @@
       <artifactId>ldp-testsuite</artifactId>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-arq</artifactId>
+      <version>2.12.0</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-core</artifactId>
+      <version>2.12.0</version>
+      <scope>compile</scope>
+    </dependency>
   </dependencies>
 </project>
