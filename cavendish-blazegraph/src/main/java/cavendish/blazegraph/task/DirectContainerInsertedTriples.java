@@ -16,7 +16,7 @@ public class DirectContainerInsertedTriples implements BiFunction<URI, BigdataSa
   private static final String SPARQL =
       "SELECT ?memberRelation ?member \n" +
       "WHERE { \n" +
-      "  GRAPH <info:cavendish/> { ?container <http://www.iana.org/assignments/link-relations/type> <http://www.w3.org/ns/ldp#DirectContainer> } .\n" +
+      "  GRAPH <info:cavendish/> { ?container <http://www.iana.org/assignments/relation/type> <http://www.w3.org/ns/ldp#DirectContainer> } .\n" +
       "  ?container <http://www.w3.org/ns/ldp#membershipResource> <%s> .\n" +
       "  ?container <http://www.w3.org/ns/ldp#contains> ?member .\n" +
       "  ?container <http://www.w3.org/ns/ldp#hasMemberRelation> ?memberRelation" +
