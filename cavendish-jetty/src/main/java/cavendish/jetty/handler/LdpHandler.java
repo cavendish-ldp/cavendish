@@ -44,7 +44,6 @@ import org.openrdf.rio.RDFFormat;
 import org.openrdf.rio.RDFParser;
 import org.openrdf.rio.RDFWriter;
 import org.openrdf.rio.RDFWriterRegistry;
-import org.openrdf.rio.jsonld.JSONLDParser;
 import org.openrdf.rio.turtle.TurtleParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +72,7 @@ import com.bigdata.rdf.sail.sparql.Bigdata2ASTSPARQLParser;
 import com.bigdata.rdf.sail.webapp.NanoSparqlServer;
 import com.bigdata.rdf.store.AbstractTripleStore;
 import com.bigdata.rdf.task.AbstractApiTask;
+import com.github.jsonldjava.sesame.SesameJSONLDParser;
 
 import org.openrdf.model.vocabulary.RDF;
 
@@ -447,7 +447,7 @@ public class LdpHandler extends AbstractHandler {
     if (RDFFormat.TURTLE.getMIMETypes().contains(ct.getMimeType())) {
       parser = new TurtleParser();
     } else if (RDFFormat.JSONLD.getMIMETypes().contains(ct.getMimeType())) {
-      parser = new JSONLDParser();
+      parser = new SesameJSONLDParser();
     } else {
       LOG.info("{} not supported", ct.getMimeType());
       throw new NotSupportedException("Unsupported Content Type " + ct.getMimeType());

@@ -50,9 +50,10 @@
       <groupId>com.blazegraph</groupId>
       <artifactId>rdf-properties</artifactId>
     </dependency>
+    <!-- https://mvnrepository.com/artifact/com.github.jsonld-java/jsonld-java-sesame -->
     <dependency>
-        <groupId>org.openrdf.sesame</groupId>
-        <artifactId>sesame-rio-jsonld</artifactId>
+      <groupId>com.github.jsonld-java</groupId>
+      <artifactId>jsonld-java-sesame</artifactId>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
