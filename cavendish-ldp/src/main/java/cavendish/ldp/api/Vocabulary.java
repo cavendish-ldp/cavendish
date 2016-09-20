@@ -12,7 +12,7 @@ public interface Vocabulary {
   URI DELETED = LDP.resolve("#DeletedResource");
   URI DIRECT_CONTAINER = LDP.resolve("#DirectContainer");
   URI HAS_MEMBER_RELATION = LDP.resolve("#hasMemberRelation");
-  URI IANA_TYPE = URI.create("http://www.iana.org/assignments/link-relations/type");
+  URI IANA_TYPE = URI.create("http://www.iana.org/assignments/relation/type");
   URI INDIRECT_CONTAINER = LDP.resolve("#IndirectContainer");
   URI INSERTED_CONTENT_RELATION = LDP.resolve("#insertedContentRelation");
   URI INTERNAL_CONTEXT = URI.create("info:cavendish/");
