@@ -1,4 +1,4 @@
-package cavendish.jetty.headers;
+package cavendish.ldp.impl;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -13,18 +13,13 @@ import cavendish.ldp.api.SerializationPreference;
 
 public class Prefer implements SerializationPreference {
   private final static Logger LOG = LoggerFactory.getLogger(Prefer.class);
-  public static final String MINIMAL = "minimal";
-  public static final String REPRESENTATION = "representation";
-  public static final String LDP_MINIMAL = "http://www.w3.org/ns/ldp#PreferMinimalContainer";
-  public static final String LDP_CONTAINMENT = "http://www.w3.org/ns/ldp#PreferContainment";
-  public static final String LDP_EMPTY = "http://www.w3.org/ns/ldp#PreferEmptyContainer";
-  public static final String LDP_MEMBERSHIP = "http://www.w3.org/ns/ldp#PreferMembership";
   static final Pattern UNQUOTE = Pattern.compile("^\\\"(.*)\\\"$");
 
   private final String returnValue;
   private final Collection<String> include;
   private final Collection<String> omit;
   private boolean acknowledged = false;
+
   public Prefer(String returnValue) {
     this(returnValue, Collections.emptyList());
   }
@@ -118,5 +113,20 @@ public class Prefer implements SerializationPreference {
       }
     }
     return new Prefer(returnValue, include, omit);
+  }
+
+  @Override
+  public boolean includeTimeMap(boolean defaultValue) {
+    return includeRepresentation(LDP_TIMEMAP, defaultValue);
+  }
+
+  @Override
+  public void include(String include) {
+    if (!this.include.contains(include)) this.include.add(include);
+  }
+
+  @Override
+  public void omit(String omit) {
+    if (!this.omit.contains(omit)) this.omit.add(omit);
   }
 }

@@ -9,8 +9,10 @@ import org.openrdf.model.Statement;
 import org.openrdf.model.URI;
 import org.openrdf.model.Value;
 import org.openrdf.model.impl.ContextStatementImpl;
+import org.openrdf.model.impl.URIImpl;
 import org.openrdf.model.vocabulary.RDF;
 import org.openrdf.rio.RDFHandler;
+import org.openrdf.rio.RDFHandlerException;
 
 import cavendish.blazegraph.ldp.Vocabulary;
 import cavendish.blazegraph.rdf.AddStatementHandler;
@@ -106,7 +108,7 @@ public class InsertRdfSourceTask extends AbstractApiTask<Long> implements Mutati
       }
       if (requiresType) {
         stmt = new ContextStatementImpl(subject, RDF.TYPE, Vocabulary.RDF_SOURCE, null);
-        LOG.error("inserting default rdf:type on create: {}", stmt.toString());
+        LOG.warn("inserting default rdf:type on create: {}", stmt.toString());
         handler.handleStatement(stmt);
       }
       if (ldpClassSwitches == 0) {
@@ -125,6 +127,7 @@ public class InsertRdfSourceTask extends AbstractApiTask<Long> implements Mutati
       LOG.info("inserting containment triple: {}", stmt.toString());
       handler.handleStatement(stmt);
       validateContainerModel(subject, ldpClassSwitches);
+      addTimeMap(subject, handler);
       handler.endRDF();
       return connection.commit2();
     } finally {
@@ -149,6 +152,19 @@ public class InsertRdfSourceTask extends AbstractApiTask<Long> implements Mutati
       return;
     }
   }
+
+  public static void addTimeMap(URI subject, RDFHandler handler) throws RDFHandlerException {
+    java.net.URI parsed = java.net.URI.create(subject.stringValue());
+    parsed = parsed.resolve("/timemaps" + parsed.getPath());
+    URIImpl timemap = new URIImpl(parsed.toString());
+    handler.handleStatement(new ContextStatementImpl(subject, Vocabulary.IANA_TIMEMAP, timemap, Vocabulary.INTERNAL_CONTEXT));
+    handler.handleStatement(new ContextStatementImpl(timemap, Vocabulary.IANA_ORIGINAL, subject, Vocabulary.INTERNAL_CONTEXT));
+    handler.handleStatement(new ContextStatementImpl(timemap, Vocabulary.IANA_TYPE, Vocabulary.DIRECT_CONTAINER, Vocabulary.INTERNAL_CONTEXT));
+    handler.handleStatement(new ContextStatementImpl(timemap, Vocabulary.IANA_TYPE, Vocabulary.MEMENTO_TIMEMAP, Vocabulary.INTERNAL_CONTEXT));
+    handler.handleStatement(new ContextStatementImpl(timemap, Vocabulary.MEMBERSHIP_RESOURCE, subject, null));
+    handler.handleStatement(new ContextStatementImpl(timemap, Vocabulary.INSERTED_CONTENT_RELATION, timemap, null));
+  }
+
   @Override
   public boolean isReadOnly() {
     return false;

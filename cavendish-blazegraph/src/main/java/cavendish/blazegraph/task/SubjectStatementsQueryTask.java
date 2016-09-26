@@ -8,6 +8,7 @@ import org.openrdf.model.URI;
 import cavendish.blazegraph.ldp.Vocabulary;
 import cavendish.blazegraph.rdf.BufferStatementsHandler;
 import cavendish.ldp.api.SerializationPreference;
+import cavendish.ldp.impl.DefaultSerializationPreference;
 
 import com.bigdata.rdf.sail.BigdataSailRepositoryConnection;
 import com.bigdata.rdf.task.AbstractApiTask;
@@ -17,6 +18,8 @@ import org.openrdf.model.Resource;
 
 public class SubjectStatementsQueryTask extends AbstractApiTask<Iterator<Statement>> {
   public static final SerializationPreference DEFAULT_PREFS = new DefaultSerializationPreference();
+  public static final SerializationPreference DEFAULT_TIMEMAP_PREFS = new DefaultSerializationPreference.TimeMap();
+
   private final URI subject;
   private final SerializationPreference prefs;
 
@@ -55,6 +58,12 @@ public class SubjectStatementsQueryTask extends AbstractApiTask<Iterator<Stateme
       connection.exportStatements(subject, null, null, includeInferred, buffer, new Resource[]{null});
       // get all statements from the subject context
       connection.exportStatements(null, null, null, includeInferred, buffer, new Resource[]{subject});
+
+      // if the timemap internals are requested
+      if (this.prefs.includeTimeMap(false)) {
+        connection.exportStatements(subject, Vocabulary.IANA_ORIGINAL, null, includeInferred, buffer, Vocabulary.INTERNAL_CONTEXT);
+      }
+
       boolean preferMinimal = this.prefs.includeMinimalContainer(this.prefs.preferMinimal());
       boolean explicitContains = this.prefs.includeContainment(false);
       boolean implicitContains = this.prefs.includeContainment(true) && !this.prefs.omitContainment(false);
@@ -84,47 +93,5 @@ public class SubjectStatementsQueryTask extends AbstractApiTask<Iterator<Stateme
   @Override
   public boolean isReadOnly() {
     return true;
-  }
-  static class DefaultSerializationPreference implements SerializationPreference {
-
-    @Override
-    public boolean preferMinimal() {
-      return false;
-    }
-
-    @Override
-    public boolean includeContainment(boolean defaultValue) {
-      return true;
-    }
-
-    @Override
-    public boolean includeMembership(boolean defaultValue) {
-      return true;
-    }
-
-    @Override
-    public boolean includeMinimalContainer(boolean defaultValue) {
-      return true;
-    }
-
-    @Override
-    public void acknowledge(boolean value) {      
-    }
-
-    @Override
-    public boolean wasAcknowledged() {
-      return false;
-    }
-
-    @Override
-    public boolean omitContainment(boolean defaultValue) {
-      return false;
-    }
-
-    @Override
-    public boolean omitMembership(boolean defaultValue) {
-      return false;
-    }
-
   }
 }

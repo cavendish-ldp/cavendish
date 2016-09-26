@@ -1,10 +1,16 @@
 package cavendish.jetty.handler;
 
+import static cavendish.ldp.api.Vocabulary.InteractionType;
+
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -12,6 +18,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 import javax.servlet.ServletException;
@@ -52,6 +59,7 @@ import cavendish.blazegraph.ldp.Vocabulary;
 import cavendish.blazegraph.rdf.BufferStatementsHandler;
 import cavendish.blazegraph.rdf.ConstraintViolationException;
 import cavendish.blazegraph.task.DeleteRdfSourceTask;
+import cavendish.blazegraph.task.InsertMementoTask;
 import cavendish.blazegraph.task.InsertRdfSourceTask;
 import cavendish.blazegraph.task.InteractionModelsQueryTask;
 import cavendish.blazegraph.task.LdpResourceExistsTask;
@@ -60,8 +68,8 @@ import cavendish.blazegraph.task.ReplaceRdfSourceTask;
 import cavendish.blazegraph.task.SubjectStatementsQueryTask;
 import cavendish.blazegraph.task.UpdateRdfSourceTask;
 import cavendish.jetty.ContentTypes;
-import cavendish.jetty.headers.Prefer;
 import cavendish.ldp.api.SerializationPreference;
+import cavendish.ldp.impl.Prefer;
 
 import com.bigdata.journal.IBufferStrategy;
 import com.bigdata.journal.IIndexManager;
@@ -82,6 +90,8 @@ public class LdpHandler extends AbstractHandler {
 
   private final static String CONSTRAINTS_PATH = "/constraints";
 
+  private final static String TIMEMAPS_PATH = "/timemaps";
+
   private final static String DEFAULT_NS = "kb";
 
   private final static String ETAG = "ETAG";
@@ -96,6 +106,7 @@ public class LdpHandler extends AbstractHandler {
   }
   public LdpHandler(String[] rootPaths) {
     this.rootPaths = rootPaths;
+    RDFFormattable.registerTimeMapFormat();
   }
 
   public void setIndexManager(IIndexManager indexManager) {
@@ -229,44 +240,46 @@ public class LdpHandler extends AbstractHandler {
     Iterator<Statement> stmts = null;
     long timestamp = indexManager.getLastCommitTime();
 
+    URI subject = new URIImpl(this.requestResource(request));
+    LOG.debug("request subject >>{}<<", subject);
+    Stream<Statement> ixnModels = AbstractApiTask.submitApiTask(indexManager, new InteractionModelsQueryTask(DEFAULT_NS, timestamp, false, subject)).get();
+    InteractionType containerType = reduceModels(ixnModels);
     SerializationPreference prefs = (request.getHeader("Prefer") != null) ?
-        Prefer.parse(request.getHeader("Prefer")) :
-          SubjectStatementsQueryTask.DEFAULT_PREFS;
-        LOG.debug("Prefer: >>{}<<", prefs);
-        URI subject = new URIImpl(this.requestResource(request));
-        LOG.debug("request subject >>{}<<", subject);
-        if (!path.equals("")) {
-          int sc = resourceStatus(subject,timestamp);
-          switch(sc) {
-          case HttpServletResponse.SC_GONE:
-            response.setContentType(ct.getMimeType());
-            response.setStatus(HttpServletResponse.SC_GONE);
-            response.setContentLength(0);
-            return;
-          case HttpServletResponse.SC_NOT_FOUND:
-            throw new NotFoundException(this.requestResource(request));
-          }
-        }
+        Prefer.parse(request.getHeader("Prefer")) : (containerType == InteractionType.TIMEMAP) ?
+            SubjectStatementsQueryTask.DEFAULT_TIMEMAP_PREFS : SubjectStatementsQueryTask.DEFAULT_PREFS;
+    LOG.debug("Prefer: >>{}<<", prefs);
 
-        SubjectStatementsQueryTask task = new SubjectStatementsQueryTask(DEFAULT_NS, timestamp, false, subject, prefs);
-        stmts = AbstractApiTask.submitApiTask(indexManager, task).get();
-        responseLinkHeader(subject, request, response, timestamp);
-
-        if (prefs.wasAcknowledged()) response.addHeader("Preference-Applied", "return=representation");
-        response.addHeader(ETAG, weakETag(subject.toString()));
-        Stream<Statement> ixnModels = AbstractApiTask.submitApiTask(indexManager, new InteractionModelsQueryTask(DEFAULT_NS, timestamp, false, subject)).get();
-        boolean isContainer = ixnModels.anyMatch(stmt -> stmt.getObject().stringValue().endsWith("Container"));
-        optionsHeaders(response, isContainer);
+    if (!path.equals("")) {
+      int sc = resourceStatus(subject,timestamp);
+      switch(sc) {
+      case HttpServletResponse.SC_GONE:
         response.setContentType(ct.getMimeType());
+        response.setStatus(HttpServletResponse.SC_GONE);
+        response.setContentLength(0);
+        return;
+      case HttpServletResponse.SC_NOT_FOUND:
+        throw new NotFoundException(this.requestResource(request));
+      }
+    }
 
-        RDFWriter writer = RDFFormattable.getResponseWriter(ct.getMimeType(), response.getOutputStream());
-        writer.startRDF();
-        while (stmts.hasNext()) {
-          Statement stmt = stmts.next();
-          writer.handleStatement(stmt);
-        }
-        writer.endRDF();
-        response.getOutputStream().flush();
+    SubjectStatementsQueryTask task = new SubjectStatementsQueryTask(DEFAULT_NS, timestamp, false, subject, prefs);
+    stmts = AbstractApiTask.submitApiTask(indexManager, task).get();
+    responseLinkHeader(subject, request, response, timestamp);
+
+    if (prefs.wasAcknowledged()) response.addHeader("Preference-Applied", "return=representation");
+    response.addHeader(ETAG, weakETag(subject.toString()));
+
+    optionsHeaders(response, containerType);
+    response.setContentType(ct.getMimeType());
+
+    RDFWriter writer = RDFFormattable.getResponseWriter(ct.getMimeType(), response.getOutputStream());
+    writer.startRDF();
+    while (stmts.hasNext()) {
+      Statement stmt = stmts.next();
+      writer.handleStatement(stmt);
+    }
+    writer.endRDF();
+    response.getOutputStream().flush();
   }
 
   protected void doHEAD(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
@@ -277,7 +290,7 @@ public class LdpHandler extends AbstractHandler {
     if (path.equals(LDP_PATH)) {
       response.setContentType(ct.getMimeType());
       responseLinkHeader(subject, request, response, indexManager.getLastCommitTime());
-      optionsHeaders(response, true);
+      optionsHeaders(response, InteractionType.CONTAINER);
       response.addHeader(ETAG, weakETag(request.getRequestURL().toString()));
       response.setStatus(HttpServletResponse.SC_OK);
       response.setContentLength(0);
@@ -298,18 +311,47 @@ public class LdpHandler extends AbstractHandler {
         responseLinkHeader(subject, request, response, timestamp);
         response.addHeader(ETAG, weakETag(subject.toString()));
         Stream<Statement> ixnModels = AbstractApiTask.submitApiTask(indexManager, new InteractionModelsQueryTask(DEFAULT_NS, timestamp, false, subject)).get();
-        boolean isContainer = ixnModels.anyMatch(stmt -> stmt.getObject().stringValue().endsWith("Container"));
-        optionsHeaders(response, isContainer);
+        optionsHeaders(response, reduceModels(ixnModels));
         response.setContentLength(0);
       }
     }
   }
 
+  private InteractionType reduceModels(Stream<Statement> ixnModels) {
+    return ixnModels.map(new Function<Statement, InteractionType>() {
+
+      @Override
+      public InteractionType apply(Statement stmt) {
+        String ixnModel = stmt.getObject().stringValue();
+        if (ixnModel.endsWith("TimeMap")) return InteractionType.TIMEMAP;
+        if (ixnModel.endsWith("Container")) return InteractionType.CONTAINER;
+        if (ixnModel.endsWith("Memento")) return InteractionType.MEMENTO;
+        if (ixnModel.endsWith("RDFSource")) return InteractionType.RDFSOURCE;
+        return InteractionType.RESOURCE;
+      }
+
+    }).max(new Comparator<InteractionType>(){
+      @Override
+      public int compare(InteractionType o1, InteractionType o2) {
+        if (o1 == o2) return 0;
+        if (o1 == InteractionType.TIMEMAP) return 1;
+        if (o2 == InteractionType.TIMEMAP) return -1;
+        if (o1 == InteractionType.CONTAINER) return 1;
+        if (o2 == InteractionType.CONTAINER) return -1;
+        if (o1 == InteractionType.MEMENTO) return 1;
+        if (o2 == InteractionType.MEMENTO) return -1;
+        if (o1 == InteractionType.RDFSOURCE) return 1;
+        if (o2 == InteractionType.RDFSOURCE) return -1;
+        return -1;
+      }
+    }
+        ).orElse(InteractionType.RESOURCE);
+  }
+
   protected void doOPTIONS(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws Exception {
     URI subject = new URIImpl(requestResource(request));
     Stream<Statement> ixnModels = AbstractApiTask.submitApiTask(indexManager, new InteractionModelsQueryTask(DEFAULT_NS, indexManager.getLastCommitTime(), false, subject)).get();
-    boolean isContainer = ixnModels.anyMatch(stmt -> stmt.getObject().stringValue().endsWith("Container"));
-    optionsHeaders(response, isContainer);
+    optionsHeaders(response, reduceModels(ixnModels));
     response.setStatus(HttpServletResponse.SC_OK);
   }
 
@@ -351,22 +393,30 @@ public class LdpHandler extends AbstractHandler {
     }
 
     Stream<Statement> ixnModels = AbstractApiTask.submitApiTask(indexManager, new InteractionModelsQueryTask(DEFAULT_NS, timestamp, false, subject)).get();
-    boolean isContainer = ixnModels.anyMatch(stmt -> stmt.getObject().stringValue().endsWith("Container"));
-    if (!isContainer) {
+    InteractionType containerType = reduceModels(ixnModels);
+    if (containerType != InteractionType.CONTAINER && containerType != InteractionType.TIMEMAP) {
       throw new NotAllowedException("Only Container resources support POST");
     }
 
-    String resource = createResource(request);
-
-    int status = resourceStatus(resource, timestamp);
-    // do not allow reuse of a URI
-    if (status == HttpServletResponse.SC_GONE) {
-      resource = resource.substring(0,resource.lastIndexOf('/') + 1);
-      resource = resource + slug(null);
-    }
-
     // insert the new context
-    createResource(new URIImpl(resource), request, response);
+    switch(containerType) {
+    case TIMEMAP:
+      createMemento(subject, request, response);
+      break;
+    case CONTAINER:
+      String resource = resourceToCreate(request, containerType);
+
+      int status = resourceStatus(resource, timestamp);
+      // do not allow reuse of a URI
+      if (status == HttpServletResponse.SC_GONE) {
+        resource = resource.substring(0,resource.lastIndexOf('/') + 1);
+        resource = resource + slug(null, containerType);
+      }
+      createResource(new URIImpl(resource), request, response);
+      break;
+    default:
+      throw new BadRequestException("Unsupported interaction type on POST: " + containerType.name());
+    }
   }
 
   private void createResource(URIImpl resourceToCreate, HttpServletRequest request, HttpServletResponse response)
@@ -379,6 +429,18 @@ public class LdpHandler extends AbstractHandler {
     response.setStatus(HttpServletResponse.SC_CREATED);
     response.setHeader("Location", resourceToCreate.stringValue());
     responseLinkHeader(resourceToCreate, request, response, indexManager.getLastCommitTime());
+    response.setContentType("text/turtle");
+  }
+
+  private void createMemento(URIImpl timemap, HttpServletRequest request, HttpServletResponse response)
+      throws Exception {
+    InsertMementoTask task = new InsertMementoTask(DEFAULT_NS, true, timemap);
+    Statement mementoFor = AbstractApiTask.submitApiTask(indexManager, task).get();
+    URI memento = (URI) mementoFor.getSubject();
+    response.setStatus(HttpServletResponse.SC_CREATED);
+    response.setHeader("Location", memento.stringValue());
+    addLinkHeaders(request, response, "memento", (URI) mementoFor.getObject());
+    responseLinkHeader(memento, request, response, indexManager.getLastCommitTime());
     response.setContentType("text/turtle");
   }
 
@@ -419,6 +481,10 @@ public class LdpHandler extends AbstractHandler {
     BufferStatementsHandler buffer = parseRDFBody(request, resource);
     URIImpl subject = new URIImpl(resource);
     ianaTypeStatements(request, subject, buffer);
+    for (Statement s: buffer.statements()) {
+      if (Vocabulary.MEMENTO_MEMENTO.equals(s.getObject())) throw new BadRequestException("Mementos are not modifiable");
+    }
+
     ReplaceRdfSourceTask task = new ReplaceRdfSourceTask(DEFAULT_NS, true, subject, buffer.iterate());
     AbstractApiTask.submitApiTask(indexManager, task).get();
     if (status == 200) {
@@ -554,6 +620,7 @@ public class LdpHandler extends AbstractHandler {
   protected int resourceStatus(URI resource, long timestamp) throws InterruptedException, ExecutionException {
     return AbstractApiTask.submitApiTask(indexManager, new LdpResourceExistsTask(DEFAULT_NS, timestamp, false, resource)).get();
   }
+
   protected String requestResource(HttpServletRequest request) {
     StringBuilder b = new StringBuilder();
     b.append(request.getScheme()).append("://").append(request.getServerName());
@@ -563,7 +630,11 @@ public class LdpHandler extends AbstractHandler {
     if ("https".equals(request.getScheme()) && 443 != request.getServerPort()) {
       b.append(':').append(Integer.toString(request.getServerPort()));
     }
-    b.append(request.getRequestURI());
+    try {
+      // the URL encoding will not match the inserted URI unless the path is decoded
+      b.append(java.net.URLDecoder.decode(request.getRequestURI(),"UTF8"));
+    } catch (UnsupportedEncodingException e) {} // come on
+
     if (request.getRequestURI().endsWith("/")) b.deleteCharAt(b.length() - 1);
     return b.toString();
   }
@@ -598,14 +669,28 @@ public class LdpHandler extends AbstractHandler {
     return AbstractApiTask.submitApiTask(indexManager, task).get();
   }
 
-  static void optionsHeaders(HttpServletResponse response, boolean container) {
-    if (container) {
+  static void optionsHeaders(HttpServletResponse response, InteractionType ixnType) {
+    switch(ixnType) {
+    case CONTAINER:
       response.setHeader("Allow", "GET,HEAD,OPTIONS,PATCH,POST,PUT");
       response.setHeader("Accept-Post", "text/turtle,application/ld+json");
-    } else {
+      response.setHeader("Accept-Patch", "application/sparql-update");
+      break;
+    case TIMEMAP:
+      response.setHeader("Allow", "GET,HEAD,OPTIONS,POST");
+      response.setHeader("Accept-Post", "*/*; p=0.0");
+      break;
+    case RDFSOURCE:
       response.setHeader("Allow", "GET,HEAD,OPTIONS,PATCH,PUT");
+      response.setHeader("Accept-Patch", "application/sparql-update");
+      break;
+    case MEMENTO:
+      response.setHeader("Allow", "GET,HEAD,OPTIONS");
+      break;
+    case RESOURCE:
+      response.setHeader("Allow", "GET,HEAD,OPTIONS,PUT");
+      break;
     }
-    response.setHeader("Accept-Patch", "application/sparql-update");
   }
 
   static boolean contentTypeSupported(ContentType contentType) {
@@ -613,7 +698,7 @@ public class LdpHandler extends AbstractHandler {
     if (RDFFormat.NQUADS.hasMIMEType(mime)) return false; // TODO: Support nquads
     RDFFormat fmt = RDFWriterRegistry.getInstance()
         .getFileFormatForMIMEType(mime);
-    return fmt != null;
+    return fmt != null || RDFFormattable.LINK_FORMAT.equals(mime);
   }
 
   static ContentType contentType(String value) {
@@ -662,6 +747,19 @@ public class LdpHandler extends AbstractHandler {
 
   void responseLinkHeader(URI subject, HttpServletRequest request, HttpServletResponse response, long timestamp) throws Exception {
     addLinkHeaders(response, "type", ianaTypeStatements(subject, timestamp).map(stmt -> (URI)stmt.getObject()));
+    URI timemap = timemapURI(subject);
+    if (timemap != null) {
+      addLinkHeaders(request, response, "timemap", timemap);
+    }
+  }
+
+  static URI timemapURI(URI subject) {
+    java.net.URI parsed = java.net.URI.create(subject.stringValue());
+    if (parsed.getPath().startsWith(TIMEMAPS_PATH)) {
+      return null; // no timemap versioning thank you very much
+    } else {
+      return new URIImpl(parsed.resolve(TIMEMAPS_PATH + parsed.getPath()).toString());
+    }
   }
 
   static void addTypeLinkHeaders(HttpServletRequest request, HttpServletResponse response, URI... types) {
@@ -669,26 +767,18 @@ public class LdpHandler extends AbstractHandler {
   }
 
   static void addLinkHeaders(HttpServletResponse response, String rel, Stream<URI> types) {
-    StringBuilder builder = new StringBuilder();
-    types.forEach((URI type) -> {
-      if (builder.length() > 0) builder.append(',');
-      builder.append(Link.fromUri(type.stringValue()).rel(rel).build().toString());
-    });
-
-    String resource = builder.toString();
-    response.addHeader("Link", resource);
-    LOG.debug("added Link header: {}", resource);
+    ArrayList<URI> typeList = new ArrayList<>();
+    types.forEach(type -> typeList.add(type));
+    addLinkHeaders(null, response, rel, typeList.toArray(new URI[]{}));
   }
 
   static void addLinkHeaders(HttpServletRequest request, HttpServletResponse response, String rel, URI... types) {
-    StringBuilder builder = new StringBuilder();
+    if (types.length == 0) return;
     for (URI type: types) {
-      if (builder.length() > 0) builder.append(',');
-      builder.append(Link.fromUri(type.stringValue()).rel(rel).build().toString());
+      Link link = Link.fromUri(type.stringValue()).rel(rel).build();
+      response.addHeader("Link", link.toString());
+      LOG.debug("added Link header: {}", link.toString());
     }
-    String resource = builder.toString();
-    response.addHeader("Link", resource);
-    LOG.debug("added Link header: {}", resource);
   }
 
   static Collection<String> requestLinkHeaders(HttpServletRequest request, String rel) {
@@ -739,15 +829,15 @@ public class LdpHandler extends AbstractHandler {
     return b;
   }
 
-  protected String createResource(HttpServletRequest request) {
+  protected String resourceToCreate(HttpServletRequest request, InteractionType containerType) {
     String resource = request.getPathInfo();
     String rootNode = rootNode(request);
     LOG.info("context = \"{}\", pathInfo = \"{}\"", request.getContextPath(), resource);
     if (rootNode.equals(resource)) {
-      resource = resource + "/" + slug(request);
+      resource = resource + "/" + slug(request, containerType);
     } else {
       if (resource.endsWith("/")) resource = resource.substring(0, resource.length() - 1);
-      resource = resource + "/" + slug(request);
+      resource = resource + "/" + slug(request, containerType);
     }
     StringBuilder b = createContext(request);
     b.append(resource);
@@ -756,9 +846,15 @@ public class LdpHandler extends AbstractHandler {
     return b.toString();
   }
 
-  static String slug(HttpServletRequest request) {
+  static String slug(HttpServletRequest request, InteractionType containerType) {
     String slug = null;
-    if (request  != null) slug = request.getHeader("Slug");
+    if (containerType == InteractionType.TIMEMAP) {
+      return Instant.now().toString();
+    }
+
+    if (request  != null) {
+      slug = request.getHeader("Slug");
+    }
     if (slug == null || slug.isEmpty())
       try {
         return Long.toUnsignedString(SecureRandom.getInstanceStrong().nextLong(),16);

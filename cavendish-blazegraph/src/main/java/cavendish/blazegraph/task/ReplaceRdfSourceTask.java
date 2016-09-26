@@ -114,7 +114,7 @@ public class ReplaceRdfSourceTask extends AbstractApiTask<Long> implements Mutat
 
       if (requiresType) {
         stmt = new ContextStatementImpl(subject, RDF.TYPE, Vocabulary.RDF_SOURCE, null);
-        LOG.error("inserting default rdf:type on replace: {}", stmt.toString());
+        LOG.warn("inserting default rdf:type on replace: {}", stmt.toString());
         handler.handleStatement(stmt);
       }
 

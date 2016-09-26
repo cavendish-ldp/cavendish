@@ -9,7 +9,11 @@ import org.openrdf.rio.RDFWriter;
 import org.openrdf.rio.RDFWriterRegistry;
 import org.openrdf.sail.SailException;
 
+import cavendish.blazegraph.rdf.writer.LinkFormatRdfWriterFactory;
+
 public interface RDFFormattable {
+
+  String LINK_FORMAT = "application/link-format";
 
   static RDFFormat rdfFormat(Iterator<String> mimeTypes) {
     RDFFormat format = RDFFormat.TURTLE;
@@ -28,6 +32,10 @@ public interface RDFFormattable {
         }
     }
     return format;
+  }
+
+  static void registerTimeMapFormat() {
+    RDFWriterRegistry.getInstance().add(new LinkFormatRdfWriterFactory());
   }
 
   static RDFFormat rdfFormat(String types) {

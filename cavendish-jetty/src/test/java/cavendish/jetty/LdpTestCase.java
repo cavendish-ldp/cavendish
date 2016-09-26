@@ -28,7 +28,7 @@ public class LdpTestCase extends BaseTestCase {
   /** @see org.testng.TestNG#HAS_NO_TEST */
   private static final int TESTNG_STATUS_HAS_NO_TEST = 8;
 
-  private static Logger log = LoggerFactory.getLogger(LdpTestCase.class);
+  private static Logger LOG = LoggerFactory.getLogger(LdpTestCase.class);
 
   private LdpTestSuite testSuite;
 
@@ -48,7 +48,7 @@ public class LdpTestCase extends BaseTestCase {
     if (resource == null) { // just stop if we can't do member resources
       throw new RuntimeException("no resource created from POST to " + getBaseUrl());
     } else {
-      log.info("member resource: <{}>", resource);
+      LOG.info("member resource: <{}>", resource);
     }
     RestAssured.reset();
     return resource;
@@ -69,7 +69,7 @@ public class LdpTestCase extends BaseTestCase {
     if (containerAsResource == null) { // just stop if we can't do member resources
       throw new RuntimeException("no resource created from POST to " + getBaseUrl());
     } else {
-      log.info("Container as resource: <{}>", containerAsResource);
+      LOG.info("Container as resource: <{}>", containerAsResource);
     }
     RestAssured.reset();
     return containerAsResource;
@@ -106,7 +106,7 @@ public class LdpTestCase extends BaseTestCase {
     if (container == null) { // just stop if we can't do member resources
       throw new RuntimeException("no resource created from POST to " + getBaseUrl());
     } else {
-      log.info("basic container: <{}>", container);
+      LOG.info("basic container: <{}>", container);
     }
     RestAssured.reset();
 
@@ -117,7 +117,7 @@ public class LdpTestCase extends BaseTestCase {
     Assert.assertTrue("ldp-testsuite finished with errors", (testSuite.getStatus() & TESTNG_STATUS_HAS_FAILURE) == 0);
     Assert.assertTrue("ldp-testsuite is empty - no test run", (testSuite.getStatus() & TESTNG_STATUS_HAS_NO_TEST) == 0);
     if ((testSuite.getStatus() & TESTNG_STATUS_HAS_SKIPPED) != 0) {
-        log.warn("ldp-testsuite has skipped some tests");
+        LOG.warn("ldp-testsuite has skipped some tests");
     }
   }
 
@@ -126,8 +126,8 @@ public class LdpTestCase extends BaseTestCase {
     String rdf = "<> a <http://example.com/ContainerInteraction> ;\n" +
                  " <" + cavendish.ldp.api.Vocabulary.MEMBERSHIP_RESOURCE.toString() + "> <> ;\n" +
                  " <" + cavendish.ldp.api.Vocabulary.HAS_MEMBER_RELATION.toString() + "> <" +
-                 cavendish.ldp.api.Vocabulary.LDP.resolve("#member").toString() + "> .";
-    System.err.print(rdf);
+                 cavendish.ldp.api.Vocabulary.LDP_NS.resolve("#member").toString() + "> .";
+    LOG.debug("inserting direct container rdf:\n{}", rdf);
     String container = RestAssured
         .given()
             .header(HttpHeaders.CONTENT_TYPE, RDFFormat.TURTLE.getDefaultMIMEType())
@@ -142,7 +142,7 @@ public class LdpTestCase extends BaseTestCase {
     if (container == null) { // just stop if we can't do member resources
       throw new RuntimeException("no resource created from POST to " + getBaseUrl());
     } else {
-      log.info("direct container: <{}>", container);
+      LOG.info("direct container: <{}>", container);
     }
     RestAssured.reset();
 
@@ -153,7 +153,7 @@ public class LdpTestCase extends BaseTestCase {
     Assert.assertTrue("ldp-testsuite finished with errors", (testSuite.getStatus() & TESTNG_STATUS_HAS_FAILURE) == 0);
     Assert.assertTrue("ldp-testsuite is empty - no test run", (testSuite.getStatus() & TESTNG_STATUS_HAS_NO_TEST) == 0);
     if ((testSuite.getStatus() & TESTNG_STATUS_HAS_SKIPPED) != 0) {
-        log.warn("ldp-testsuite has skipped some tests");
+        LOG.warn("ldp-testsuite has skipped some tests");
     }
   }
 
@@ -162,10 +162,10 @@ public class LdpTestCase extends BaseTestCase {
     String rdf = "<> a <http://example.com/ContainerInteraction> ;\n" +
                  " <" + cavendish.ldp.api.Vocabulary.MEMBERSHIP_RESOURCE.toString() + "> <> ;\n" +
                  " <" + cavendish.ldp.api.Vocabulary.HAS_MEMBER_RELATION.toString() + "> <" +
-                 cavendish.ldp.api.Vocabulary.LDP.resolve("#member").toString() + "> ;\n" +
+                 cavendish.ldp.api.Vocabulary.LDP_NS.resolve("#member").toString() + "> ;\n" +
                  " <" + cavendish.ldp.api.Vocabulary.INSERTED_CONTENT_RELATION.toString() + "> <" +
-                 cavendish.ldp.api.Vocabulary.LDP.resolve("#MemberSubject").toString() + "> .";
-    System.err.print(rdf);
+                 cavendish.ldp.api.Vocabulary.LDP_NS.resolve("#MemberSubject").toString() + "> .";
+    LOG.debug("inserting indirect container rdf:\n{}", rdf);
     String container = RestAssured
         .given()
             .header(HttpHeaders.CONTENT_TYPE, RDFFormat.TURTLE.getDefaultMIMEType())
@@ -180,7 +180,7 @@ public class LdpTestCase extends BaseTestCase {
     if (container == null) { // just stop if we can't do member resources
       throw new RuntimeException("no resource created from POST to " + getBaseUrl());
     } else {
-      log.info("indirect container: <{}>", container);
+      LOG.info("indirect container: <{}>", container);
     }
     RestAssured.reset();
 
@@ -191,7 +191,7 @@ public class LdpTestCase extends BaseTestCase {
     Assert.assertTrue("ldp-testsuite finished with errors", (testSuite.getStatus() & TESTNG_STATUS_HAS_FAILURE) == 0);
     Assert.assertTrue("ldp-testsuite is empty - no test run", (testSuite.getStatus() & TESTNG_STATUS_HAS_NO_TEST) == 0);
     if ((testSuite.getStatus() & TESTNG_STATUS_HAS_SKIPPED) != 0) {
-        log.warn("ldp-testsuite has skipped some tests");
+        LOG.warn("ldp-testsuite has skipped some tests");
     }
   }
 }

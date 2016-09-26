@@ -7,6 +7,8 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
+import cavendish.ldp.impl.Prefer;
+
 public class PreferTest {
   @Test
   public void testReturn() {
