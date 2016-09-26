@@ -251,10 +251,6 @@
       <id>sonatype</id>
       <url>https://oss.sonatype.org/content/repositories/releases</url>
     </repository>
-    <repository>
-     <id>bigdata.releases</id>
-     <url>http://www.systap.com/maven/releases</url>
-   </repository>
   </repositories>
   <modules>
     <module>cavendish-ldp</module>
