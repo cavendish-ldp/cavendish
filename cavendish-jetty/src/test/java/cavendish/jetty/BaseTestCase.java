@@ -7,51 +7,32 @@ import java.io.FileInputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Properties;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.junit.Assume;
 import org.junit.Before;
-import org.junit.BeforeClass;
-import org.eclipse.jetty.server.Connector;
-import org.eclipse.jetty.server.Handler;
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.util.thread.ThreadPool;
 import org.junit.After;
-import org.junit.AfterClass;
-import org.openrdf.repository.Repository;
-import org.openrdf.sail.SailException;
 
-import com.bigdata.journal.BufferMode;
-import com.bigdata.journal.IIndexManager;
 import com.bigdata.journal.Journal;
-import com.bigdata.rdf.sail.BigdataSail;
-import com.bigdata.rdf.sail.BigdataSailRepository;
-
-import cavendish.jetty.handler.LdpHandler;
 
 public abstract class BaseTestCase {
     //private static ExecutorService pool = Executors.newCachedThreadPool();
     static int port = 8888;
-    Server server = null;
-    // if sail or repo are cleaned up in GC, they will shutdown, so must be members
-    BigdataSail sail = null;
-    Repository repository = null;
+    static String TEST_PROPERTIES = "src/test/webapp/WEB-INF/RWStore.properties";
     File journalPath = null;
+    App app = null;
     @Before
     public void beforeAll() throws Exception {
         final Properties props = new Properties();
-        props.load(new FileInputStream("src/test/webapp/WEB-INF/RWStore.properties"));
+        props.load(new FileInputStream(TEST_PROPERTIES));
         //props.remove("com.bigdata.journal.AbstractJournal.file");
         journalPath = new File(props.getProperty("com.bigdata.journal.AbstractJournal.file")).getAbsoluteFile();
         journalPath.delete();
         journalPath.createNewFile();
+        app = new App(port, TEST_PROPERTIES);
+        app.start();
         //props.setProperty("com.bigdata.journal.AbstractJournal.bufferMode", BufferMode.MemStore.toString());
         try {
+        /**
 
           sail = new BigdataSail(props);
           repository = new BigdataSailRepository(sail);
@@ -69,7 +50,8 @@ public abstract class BaseTestCase {
           this.server.setHandler(handler);
           this.server.setStopTimeout(100);
           server.start();
-          assertTrue(((Journal)indexManager).getBufferStrategy().isOpen());
+          **/
+          assertTrue(((Journal)app.getIndexManager()).getBufferStrategy().isOpen());
           assertTrue(journalPath.exists());
         } finally {
 
@@ -95,8 +77,9 @@ public abstract class BaseTestCase {
 
     @After
     public void afterAll() throws Exception {
-	    if (server != null)  server.stop();
-	    if (sail != null) sail.shutDown();
+	    // if (server != null)  server.stop();
+	    // if (sail != null) sail.shutDown();
+      app.stop();
       journalPath.delete();
    }
 }

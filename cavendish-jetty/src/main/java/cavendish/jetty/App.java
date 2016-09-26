@@ -1,6 +1,8 @@
 package cavendish.jetty;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -13,6 +15,7 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerList;
 import org.openrdf.repository.Repository;
+import org.openrdf.repository.RepositoryException;
 
 import com.bigdata.journal.IIndexManager;
 import com.bigdata.rdf.sail.BigdataSail;
@@ -30,20 +33,41 @@ public class App implements Runnable
 
   private int port;
   private final IIndexManager indexManager;
-  private final Map<String, String> initParams;
+  private final Properties initParams;
   private final Server server;
-  public App(int port, IIndexManager indexManager, Map<String, String> initParams) {
-    this.port = port;
-    this.indexManager = indexManager;
-    this.initParams = initParams;
-
+  // if sail or repo are cleaned up in GC, they will shutdown, so must be members
+  private final Repository repository;
+  private static Properties loadProperties(String configPath) {
+    Properties props = new Properties();
     try {
-      server = NanoSparqlServer.newInstance(this.port, this.indexManager,
-          this.initParams);
-    } catch (Exception e) {
+      props.load(new FileInputStream(configPath));
+    } catch (IOException e) {
       throw new RuntimeException(e);
-    } finally {
     }
+    return props;
+  }
+
+  public App(int port, String configPath) throws RepositoryException {
+    this(port, loadProperties(configPath));
+  }
+
+  public App(int port, Properties initParams) throws RepositoryException {
+    this.port = port;
+    this.initParams = initParams;
+    final BigdataSail sail = new BigdataSail(initParams);
+    repository = new BigdataSailRepository(sail);
+    repository.initialize();
+
+
+    indexManager = sail.getIndexManager();
+
+    LdpHandler handler = new LdpHandler(new String[]{""});
+    handler.setIndexManager(indexManager);
+    server = new Server(port);
+    HandlerList handlers = new HandlerList();
+    handlers.setHandlers(new Handler[] { handler, new DefaultHandler() });
+    server.setHandler(handler);
+    server.setStopTimeout(100);
   }
 
   public int port()
@@ -51,7 +75,15 @@ public class App implements Runnable
     return this.port;
   }
 
-  public void run()
+  public void run() {
+    start();
+    try {
+      join();
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+  }
+  public void start()
   {
     try {
       server.start();
@@ -72,13 +104,16 @@ public class App implements Runnable
           .toExternalForm();
 
       System.out.println("serviceURL: " + serviceURL);
-      server.join();
     } catch (Throwable t) {
       stop();
       t.printStackTrace();
       log.error(t, t);
     }
 
+  }
+
+  public void join() throws InterruptedException {
+    server.join();
   }
 
   public void stop() {
@@ -94,40 +129,33 @@ public class App implements Runnable
     return this.indexManager;
   }
 
+  public Server getServer() {
+    return this.server;
+  }
+
   public static void main( String[] args ) throws Exception
   {
     final int port = Integer.parseInt(args[0]); // random port.
 
-    Properties props = new Properties();
-    String configPath = args[2];
+    App app = null;
+    String configPath = (args.length > 1) ? args[2] : null;
     if (configPath != null) {
-      props.load(new FileInputStream(configPath));
+      app = new App(port, configPath);
     } else {
+      Properties props = new Properties();
       props.setProperty(AbstractTripleStore.Options.QUADS, Boolean.toString(true));
       props.setProperty(AbstractTripleStore.Options.AXIOMS_CLASS, "com.bigdata.rdf.store.AbstractTripleStore.NoAxioms");
       //props.setProperty(AbstractTripleStore.Options.STATEMENT_IDENTIFIERS, Boolean.toString(false));
       //props.setProperty(AbstractTripleStore.Options.TRIPLES_MODE_WITH_PROVENANCE, Boolean.toString(true));
       props.setProperty(BigdataSail.Options.TRUTH_MAINTENANCE,Boolean.toString(false));
+      app = new App(port, props);
     }
-    final BigdataSail sail = new BigdataSail(props);
-    final Repository repository = new BigdataSailRepository(sail);
-    repository.initialize();
-
     try {
 
-      final IIndexManager indexManager = sail.getIndexManager();
-
-      LdpHandler handler = new LdpHandler(new String[]{""});
-      handler.setIndexManager(indexManager);
-      Server server = new Server(port);
-      HandlerList handlers = new HandlerList();
-      handlers.setHandlers(new Handler[] { handler, new DefaultHandler() });
-      server.setHandler(handler);
-      server.start();
-      server.join();
+      app.start();
+      app.join();
     } finally {
-      if (repository.isInitialized()) repository.shutDown();
-      if (sail.isOpen()) sail.shutDown();
+      app.stop();
       System.out.println("Halted.");
     }
   }

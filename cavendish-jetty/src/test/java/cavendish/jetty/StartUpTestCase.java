@@ -14,7 +14,7 @@ public class StartUpTestCase extends BaseTestCase {
 
   @Test
   public void testServerStartup() throws IOException {
-    assertTrue(this.server.isStarted());
+    assertTrue(this.app.getServer().isStarted());
     URL url = getBaseUrl();
     RestAssured.expect().statusCode(HttpStatusSuccessMatcher.isSuccessful()).get(url);
   }
