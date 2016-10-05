@@ -107,6 +107,7 @@ public class LdpHandler extends AbstractHandler {
   public LdpHandler(String[] rootPaths) {
     this.rootPaths = rootPaths;
     RDFFormattable.registerTimeMapFormat();
+    RDFFormattable.registerApplicationNTriplesFormat();
   }
 
   public void setIndexManager(IIndexManager indexManager) {

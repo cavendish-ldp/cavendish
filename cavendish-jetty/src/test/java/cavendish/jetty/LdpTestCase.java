@@ -19,6 +19,8 @@ import org.w3.ldp.testsuite.test.LdpTest;
 
 import com.jayway.restassured.RestAssured;
 
+import cavendish.blazegraph.task.RDFFormattable;
+
 public class LdpTestCase extends BaseTestCase {
 
   /** @see org.testng.TestNG#HAS_FAILURE */
@@ -194,4 +196,16 @@ public class LdpTestCase extends BaseTestCase {
         LOG.warn("ldp-testsuite has skipped some tests");
     }
   }
+  @Test
+  public void testNtriplesSerialization() {
+    String mt = RDFFormattable.APPLICATION_N_TRIPLES;
+    String memberResource = memberResource(getBaseUrl().toString());
+    String body = RestAssured
+        .given().header(HttpHeaders.ACCEPT, mt)
+        .expect()
+        .header(HttpHeaders.CONTENT_TYPE, mt)
+        .statusCode(HttpStatusSuccessMatcher.isSuccessful()).get(memberResource).asString();
+    Assert.assertTrue(body, body.indexOf("<" + memberResource +"> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.com/ResourceInteraction>") > -1);
+    }
+    
 }

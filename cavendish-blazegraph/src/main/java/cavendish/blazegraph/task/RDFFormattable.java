@@ -1,12 +1,17 @@
 package cavendish.blazegraph.task;
 
 import java.io.OutputStream;
+import java.nio.charset.Charset;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.rio.RDFFormat;
 import org.openrdf.rio.RDFWriter;
+import org.openrdf.rio.RDFWriterFactory;
 import org.openrdf.rio.RDFWriterRegistry;
+import org.openrdf.rio.ntriples.NTriplesWriterFactory;
 import org.openrdf.sail.SailException;
 
 import cavendish.blazegraph.rdf.writer.LinkFormatRdfWriterFactory;
@@ -14,6 +19,7 @@ import cavendish.blazegraph.rdf.writer.LinkFormatRdfWriterFactory;
 public interface RDFFormattable {
 
   String LINK_FORMAT = "application/link-format";
+  String APPLICATION_N_TRIPLES = "application/n-triples";
 
   static RDFFormat rdfFormat(Iterator<String> mimeTypes) {
     RDFFormat format = RDFFormat.TURTLE;
@@ -36,6 +42,19 @@ public interface RDFFormattable {
 
   static void registerTimeMapFormat() {
     RDFWriterRegistry.getInstance().add(new LinkFormatRdfWriterFactory());
+  }
+
+  static void registerApplicationNTriplesFormat() {
+    RDFWriterRegistry instance = RDFWriterRegistry.getInstance();
+    RDFFormat nt = RDFFormat.NTRIPLES;
+    RDFFormat ntriples = new RDFFormat(APPLICATION_N_TRIPLES, Collections.singletonList(APPLICATION_N_TRIPLES),nt.getCharset(),
+        nt.getFileExtensions(), nt.supportsNamespaces(), nt.supportsContexts());
+    instance.add(new NTriplesWriterFactory(){
+      @Override
+      public RDFFormat getRDFFormat() {
+        return ntriples;
+      }
+    });
   }
 
   static RDFFormat rdfFormat(String types) {
