@@ -3,6 +3,8 @@
 Cavendish endeavours to be both an implementation of [LDP](https://www.w3.org/TR/ldp/) and a laboratory for elaborating [Fedora 4](http://duraspace.org/about_fedora) APIs as extensions of the LDP specification. We are also interested in better understanding how the constituent frameworks of a Fedora 4 implementation influence the way its core model is understood- in this case, building a Fedora on a triplestore. Cavendish is built on [BlazeGraph](https://www.blazegraph.com/).
 ## Running Cavendish
 ```bash
+cd cavendish
+mvn install
 cd cavendish-jetty
 JETTY_HOME=file:`pwd`/src/main/webapp
 BG_CONFIG=`pwd`/src/main/webapp/WEB-INF/RWStore.properties
