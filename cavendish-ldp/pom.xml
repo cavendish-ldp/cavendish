@@ -11,14 +11,12 @@
   <name>cavendish-ldp</name>
   <url>http://maven.apache.org</url>
   <packaging>bundle</packaging>
-
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <osgi.export.packages>
       cavendish.ldp.*;version=${project.version}
     </osgi.export.packages>
   </properties>
-
   <build>
     <plugins>
       <plugin>
