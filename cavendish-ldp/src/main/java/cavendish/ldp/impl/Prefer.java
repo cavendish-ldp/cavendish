@@ -94,7 +94,7 @@ public class Prefer implements SerializationPreference {
     return value;
   }
   public static Prefer parse(String value) {
-    LOG.warn("Parsing Prefer: {}", value);
+    LOG.debug("Parsing Prefer: {}", value);
     String[] parts = value.split(";\\s*");
     String returnValue = null;
     Collection<String> omit = Collections.emptyList();
