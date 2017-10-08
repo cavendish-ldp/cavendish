@@ -30,6 +30,7 @@ import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.NotAllowedException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.NotSupportedException;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Link;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -66,6 +67,7 @@ import cavendish.blazegraph.task.ReplaceRdfSourceTask;
 import cavendish.blazegraph.task.SubjectStatementsQueryTask;
 import cavendish.blazegraph.task.UpdateRdfSourceTask;
 import cavendish.jetty.ContentTypes;
+import cavendish.ldp.api.LdpHeaders;
 import cavendish.ldp.api.SerializationPreference;
 import cavendish.ldp.impl.Prefer;
 
@@ -243,8 +245,8 @@ public class LdpHandler extends AbstractHandler {
     LOG.debug("request subject >>{}<<", subject);
     Stream<Statement> ixnModels = AbstractApiTask.submitApiTask(indexManager, new InteractionModelsQueryTask(DEFAULT_NS, timestamp, false, subject)).get();
     InteractionType containerType = reduceModels(ixnModels);
-    SerializationPreference prefs = (request.getHeader("Prefer") != null) ?
-        Prefer.parse(request.getHeader("Prefer")) : (containerType == InteractionType.TIMEMAP) ?
+    SerializationPreference prefs = (request.getHeader(LdpHeaders.PREFER) != null) ?
+        Prefer.parse(request.getHeader(LdpHeaders.PREFER)) : (containerType == InteractionType.TIMEMAP) ?
             SubjectStatementsQueryTask.DEFAULT_TIMEMAP_PREFS : SubjectStatementsQueryTask.DEFAULT_PREFS;
     LOG.debug("Prefer: >>{}<<", prefs);
 
@@ -265,7 +267,7 @@ public class LdpHandler extends AbstractHandler {
     stmts = AbstractApiTask.submitApiTask(indexManager, task).get();
     responseLinkHeader(subject, request, response, timestamp);
 
-    if (prefs.wasAcknowledged()) response.addHeader("Preference-Applied", "return=representation");
+    if (prefs.wasAcknowledged()) response.addHeader(LdpHeaders.PREFERENCE_APPLIED, "return=representation");
     response.addHeader(ETAG, weakETag(subject.toString()));
 
     optionsHeaders(response, containerType);
@@ -426,7 +428,7 @@ public class LdpHandler extends AbstractHandler {
     InsertRdfSourceTask task = new InsertRdfSourceTask(DEFAULT_NS, true, resourceToCreate, buffer.iterate());
     AbstractApiTask.submitApiTask(indexManager, task).get();
     response.setStatus(HttpServletResponse.SC_CREATED);
-    response.setHeader("Location", resourceToCreate.stringValue());
+    response.setHeader(HttpHeaders.LOCATION, resourceToCreate.stringValue());
     responseLinkHeader(resourceToCreate, request, response, indexManager.getLastCommitTime());
     response.setContentType("text/turtle");
   }
@@ -437,7 +439,7 @@ public class LdpHandler extends AbstractHandler {
     Statement mementoFor = AbstractApiTask.submitApiTask(indexManager, task).get();
     URI memento = (URI) mementoFor.getSubject();
     response.setStatus(HttpServletResponse.SC_CREATED);
-    response.setHeader("Location", memento.stringValue());
+    response.setHeader(HttpHeaders.LOCATION, memento.stringValue());
     addLinkHeaders(request, response, "memento", (URI) mementoFor.getObject());
     responseLinkHeader(memento, request, response, indexManager.getLastCommitTime());
     response.setContentType("text/turtle");
@@ -447,7 +449,7 @@ public class LdpHandler extends AbstractHandler {
       throws Exception {
     response.setContentType("text/turtle");
     String resource = requestResource(request);
-    if (request.getHeader("Slug") != null) {
+    if (request.getHeader(LdpHeaders.SLUG) != null) {
       throw new BadRequestException("PUT cannot create new resources with Slug");
     }
     int status = resourceStatus(resource, 0L);
@@ -462,7 +464,7 @@ public class LdpHandler extends AbstractHandler {
       return;
     }
     if (HttpServletResponse.SC_OK == status) {
-      if (request.getHeader("If-Match") == null) {
+      if (request.getHeader(HttpHeaders.IF_MATCH) == null) {
         throw new ClientErrorException("PUT requires If-Match header", Vocabulary.SC_PRECONDITION_REQUIRED);
       }
     }
@@ -491,7 +493,7 @@ public class LdpHandler extends AbstractHandler {
     } else {
       response.setStatus(HttpServletResponse.SC_CREATED);
     }
-    response.setHeader("Location", resource);
+    response.setHeader(HttpHeaders.LOCATION, resource);
     responseLinkHeader(subject, request, response, System.currentTimeMillis());
     response.setContentType("text/turtle");
     LOG.info(" response Location -> {}", resource);
@@ -652,7 +654,7 @@ public class LdpHandler extends AbstractHandler {
   }
 
   protected boolean resourceChangedSince(String subject, HttpServletRequest request) {
-    String condition = request.getHeader("If-Match");
+    String condition = request.getHeader(HttpHeaders.IF_MATCH);
     if (condition != null) {
       String etag = weakETag(subject);
       if (!etag.equals(condition)) {
@@ -671,23 +673,23 @@ public class LdpHandler extends AbstractHandler {
   static void optionsHeaders(HttpServletResponse response, InteractionType ixnType) {
     switch(ixnType) {
     case CONTAINER:
-      response.setHeader("Allow", "GET,HEAD,OPTIONS,PATCH,POST,PUT");
-      response.setHeader("Accept-Post", "text/turtle,application/ld+json");
-      response.setHeader("Accept-Patch", "application/sparql-update");
+      response.setHeader(HttpHeaders.ALLOW, "GET,HEAD,OPTIONS,PATCH,POST,PUT");
+      response.setHeader(LdpHeaders.ACCEPT_POST, "text/turtle,application/ld+json");
+      response.setHeader(LdpHeaders.ACCEPT_PATCH, "application/sparql-update");
       break;
     case TIMEMAP:
-      response.setHeader("Allow", "GET,HEAD,OPTIONS,POST");
-      response.setHeader("Accept-Post", "*/*; p=0.0");
+      response.setHeader(HttpHeaders.ALLOW, "GET,HEAD,OPTIONS,POST");
+      response.setHeader(LdpHeaders.ACCEPT_POST, "*/*; p=0.0");
       break;
     case RDFSOURCE:
-      response.setHeader("Allow", "GET,HEAD,OPTIONS,PATCH,PUT");
-      response.setHeader("Accept-Patch", "application/sparql-update");
+      response.setHeader(HttpHeaders.ALLOW, "GET,HEAD,OPTIONS,PATCH,PUT");
+      response.setHeader(LdpHeaders.ACCEPT_PATCH, "application/sparql-update");
       break;
     case MEMENTO:
-      response.setHeader("Allow", "GET,HEAD,OPTIONS");
+      response.setHeader(HttpHeaders.ALLOW, "GET,HEAD,OPTIONS");
       break;
     case RESOURCE:
-      response.setHeader("Allow", "GET,HEAD,OPTIONS,PUT");
+      response.setHeader(HttpHeaders.ALLOW, "GET,HEAD,OPTIONS,PUT");
       break;
     }
   }
@@ -775,13 +777,13 @@ public class LdpHandler extends AbstractHandler {
     if (types.length == 0) return;
     for (URI type: types) {
       Link link = Link.fromUri(type.stringValue()).rel(rel).build();
-      response.addHeader("Link", link.toString());
+      response.addHeader(HttpHeaders.LINK, link.toString());
       LOG.debug("added Link header: {}", link.toString());
     }
   }
 
   static Collection<String> requestLinkHeaders(HttpServletRequest request, String rel) {
-    Enumeration<String> linkHeaders = request.getHeaders("Link");
+    Enumeration<String> linkHeaders = request.getHeaders(HttpHeaders.LINK);
     Set<String> values = new HashSet<>();
     while (linkHeaders.hasMoreElements()) {
       Link link = Link.valueOf(linkHeaders.nextElement());
@@ -793,7 +795,7 @@ public class LdpHandler extends AbstractHandler {
   }
 
   static ContentType responseType(HttpServletRequest request) {
-    String value = request.getHeader("Accept");
+    String value = request.getHeader(HttpHeaders.ACCEPT);
 
     if (value == null || value.isEmpty()) {
       return ContentTypes.TEXT_TURTLE;
@@ -852,7 +854,7 @@ public class LdpHandler extends AbstractHandler {
     }
 
     if (request  != null) {
-      slug = request.getHeader("Slug");
+      slug = request.getHeader(LdpHeaders.SLUG);
     }
     if (slug == null || slug.isEmpty()) {
       slug = UUID.randomUUID().toString();
