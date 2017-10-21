@@ -20,6 +20,7 @@ public interface Vocabulary {
   URI MEMBERSHIP_RESOURCE = new URIImpl(cavendish.ldp.api.Vocabulary.MEMBERSHIP_RESOURCE.toString());
   URI MEMENTO_MEMENTO = new URIImpl(cavendish.ldp.api.Vocabulary.MEMENTO_MEMENTO.toString());
   URI MEMENTO_TIMEMAP = new URIImpl(cavendish.ldp.api.Vocabulary.MEMENTO_TIMEMAP.toString());
+  URI NON_RDF_SOURCE = new URIImpl(cavendish.ldp.api.Vocabulary.NON_RDF_SOURCE.toString());
   URI RDF_SOURCE = new URIImpl(cavendish.ldp.api.Vocabulary.RDF_SOURCE.toString());
   URI RESOURCE = new URIImpl(cavendish.ldp.api.Vocabulary.RESOURCE.toString());
   String DEFAULT_NS = cavendish.ldp.api.Vocabulary.DEFAULT_NS;

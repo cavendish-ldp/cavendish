@@ -22,14 +22,16 @@ public interface Vocabulary {
   URI INDIRECT_CONTAINER = LDP_NS.resolve("#IndirectContainer");
   URI INSERTED_CONTENT_RELATION = LDP_NS.resolve("#insertedContentRelation");
   URI INTERNAL_CONTEXT = URI.create("info:cavendish/");
+  URI INTERNAL_CONTENT_LOCATION = INTERNAL_CONTEXT.resolve("contentLocation");
   URI MEMBERSHIP_RESOURCE = LDP_NS.resolve("#membershipResource");
   URI MEMENTO_MEMENTO = MEMENTO_NS.resolve("Memento");
   URI MEMENTO_TIMEMAP = MEMENTO_NS.resolve("TimeMap");
+  URI NON_RDF_SOURCE = LDP_NS.resolve("#NonRDFSource");
   URI RDF_SOURCE = LDP_NS.resolve("#RDFSource");
   URI RESOURCE = LDP_NS.resolve("#Resource");
 
   String DEFAULT_NS = "kb";
   static enum InteractionType {
-    RESOURCE, RDFSOURCE, MEMENTO, CONTAINER, TIMEMAP
+    RESOURCE, RDFSOURCE, MEMENTO, CONTAINER, TIMEMAP, NONRDFSOURCE
   }
 }
