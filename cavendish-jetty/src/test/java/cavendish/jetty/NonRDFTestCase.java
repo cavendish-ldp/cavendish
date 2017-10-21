@@ -60,8 +60,11 @@ public class NonRDFTestCase extends BaseTestCase {
     }
     RestAssured.reset();
     for (Header header: acceptPost) {
-      HeaderValue value = HeaderValue.parse(header.getValue());
-      if (value.value().equals("message/external-body")) return;
+      HeaderValue[] values = HeaderValue.parseValues(header.getValue());
+      for (HeaderValue value: values) {
+        LOG.info(value.toString());
+        if (value.value().equals("message/external-body")) return;
+      }
     }
     fail("Expected at least one Accept-Post values for message/external-body");
   }

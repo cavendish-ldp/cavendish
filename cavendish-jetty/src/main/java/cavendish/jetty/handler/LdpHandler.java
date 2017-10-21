@@ -674,7 +674,7 @@ public class LdpHandler extends AbstractHandler {
     switch(ixnType) {
     case CONTAINER:
       response.setHeader(HttpHeaders.ALLOW, "GET,HEAD,OPTIONS,PATCH,POST,PUT");
-      response.setHeader(LdpHeaders.ACCEPT_POST, "text/turtle,application/ld+json");
+      response.setHeader(LdpHeaders.ACCEPT_POST, "text/turtle,application/ld+json,message/external-body;access-type=URL;URL=*");
       response.setHeader(LdpHeaders.ACCEPT_PATCH, "application/sparql-update");
       break;
     case TIMEMAP:

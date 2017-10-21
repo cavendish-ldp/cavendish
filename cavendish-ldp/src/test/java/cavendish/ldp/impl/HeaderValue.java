@@ -63,4 +63,12 @@ public class HeaderValue {
     }
     return new HeaderValue(value, params);
   }
+  public static HeaderValue[] parseValues(String headerText) {
+    String[] headerValues = headerText.split(",");
+    HeaderValue[] result = new HeaderValue[headerValues.length];
+    for (int i=0;i<headerValues.length;i++){
+      result[i] = parse(headerValues[i]);
+    }
+    return result;
+  }
 }
