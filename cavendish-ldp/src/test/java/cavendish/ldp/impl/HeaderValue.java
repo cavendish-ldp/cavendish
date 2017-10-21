@@ -1,4 +1,4 @@
-package cavendish.jetty.headers;
+package cavendish.ldp.impl;
 
 import java.util.ArrayList;
 import java.util.HashMap;

@@ -18,7 +18,7 @@ import org.w3.ldp.testsuite.matcher.HttpStatusSuccessMatcher;
 import com.jayway.restassured.RestAssured;
 import com.jayway.restassured.response.Header;
 
-import cavendish.jetty.headers.HeaderValue;
+import cavendish.ldp.impl.HeaderValue;
 import cavendish.ldp.api.LdpHeaders;
 
 public class NonRDFTestCase extends BaseTestCase {

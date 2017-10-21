@@ -1,4 +1,4 @@
-package org.cavendish.ldp;
+package cavendish.ldp;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
