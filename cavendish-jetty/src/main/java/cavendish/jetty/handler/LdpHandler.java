@@ -5,8 +5,6 @@ import static cavendish.ldp.api.Vocabulary.InteractionType;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,6 +15,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -31,7 +30,6 @@ import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.NotAllowedException;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.NotSupportedException;
-import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.core.Link;
 
 import org.apache.commons.codec.digest.DigestUtils;
@@ -856,12 +854,9 @@ public class LdpHandler extends AbstractHandler {
     if (request  != null) {
       slug = request.getHeader("Slug");
     }
-    if (slug == null || slug.isEmpty())
-      try {
-        return Long.toUnsignedString(SecureRandom.getInstanceStrong().nextLong(),16);
-      } catch (NoSuchAlgorithmException e) {
-        throw new ServerErrorException("No algorithm for slug generation", 500, e);
-      }
+    if (slug == null || slug.isEmpty()) {
+      slug = UUID.randomUUID().toString();
+    }
     return slug;
   }
 }
