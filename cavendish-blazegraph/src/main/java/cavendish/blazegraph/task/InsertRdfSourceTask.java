@@ -9,26 +9,21 @@ import org.openrdf.model.Statement;
 import org.openrdf.model.URI;
 import org.openrdf.model.Value;
 import org.openrdf.model.impl.ContextStatementImpl;
-import org.openrdf.model.impl.URIImpl;
 import org.openrdf.model.vocabulary.RDF;
 import org.openrdf.rio.RDFHandler;
-import org.openrdf.rio.RDFHandlerException;
 
 import cavendish.blazegraph.ldp.Vocabulary;
 import cavendish.blazegraph.rdf.AddStatementHandler;
 import cavendish.blazegraph.rdf.ConstraintViolationException;
 
 import com.bigdata.rdf.sail.BigdataSailRepositoryConnection;
-import com.bigdata.rdf.task.AbstractApiTask;
 
 import org.openrdf.model.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class InsertRdfSourceTask extends AbstractApiTask<Long> implements MutatingTask {
+public class InsertRdfSourceTask extends InsertResourceTask {
   private static final Logger LOG = LoggerFactory.getLogger(InsertRdfSourceTask.class);
-  private final URI subject;
-  private final Iterator<Statement> statementIterator;
   /**
    * @param namespace
    *            The namespace of the target KB instance.
@@ -50,9 +45,7 @@ public class InsertRdfSourceTask extends AbstractApiTask<Long> implements Mutati
 
   public InsertRdfSourceTask(final String namespace, final boolean isGRSRequired,
       final URI subject, Iterator<Statement> statements) {
-    super(namespace, -1, isGRSRequired); // setting a > 0 time makes view read-only
-    this.subject = subject;
-    this.statementIterator = statements;
+    super(namespace, isGRSRequired, subject, statements);
   }
 
   public Long call() throws Exception {
@@ -151,18 +144,6 @@ public class InsertRdfSourceTask extends AbstractApiTask<Long> implements Mutati
       }
       return;
     }
-  }
-
-  public static void addTimeMap(URI subject, RDFHandler handler) throws RDFHandlerException {
-    java.net.URI parsed = java.net.URI.create(subject.stringValue());
-    parsed = parsed.resolve("/timemaps" + parsed.getPath());
-    URIImpl timemap = new URIImpl(parsed.toString());
-    handler.handleStatement(new ContextStatementImpl(subject, Vocabulary.IANA_TIMEMAP, timemap, Vocabulary.INTERNAL_CONTEXT));
-    handler.handleStatement(new ContextStatementImpl(timemap, Vocabulary.IANA_ORIGINAL, subject, Vocabulary.INTERNAL_CONTEXT));
-    handler.handleStatement(new ContextStatementImpl(timemap, Vocabulary.IANA_TYPE, Vocabulary.DIRECT_CONTAINER, Vocabulary.INTERNAL_CONTEXT));
-    handler.handleStatement(new ContextStatementImpl(timemap, Vocabulary.IANA_TYPE, Vocabulary.MEMENTO_TIMEMAP, Vocabulary.INTERNAL_CONTEXT));
-    handler.handleStatement(new ContextStatementImpl(timemap, Vocabulary.MEMBERSHIP_RESOURCE, subject, null));
-    handler.handleStatement(new ContextStatementImpl(timemap, Vocabulary.INSERTED_CONTENT_RELATION, timemap, null));
   }
 
   @Override
