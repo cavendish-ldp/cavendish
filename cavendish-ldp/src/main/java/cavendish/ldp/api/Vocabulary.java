@@ -7,6 +7,7 @@ public interface Vocabulary {
   URI IANA_NS = URI.create("http://www.iana.org/assignments/relation/");
   URI LDP_NS = URI.create("http://www.w3.org/ns/ldp");
   URI MEMENTO_NS = URI.create("https://mementoweb.org/");
+  URI HTTP_HEADERS_NS = URI.create("http://www.w3.org/2011/http-headers");
 
   URI BASIC_CONTAINER = LDP_NS.resolve("#BasicContainer");
   URI CONSTRAINED_BY = LDP_NS.resolve("#constrainedBy");
@@ -15,6 +16,10 @@ public interface Vocabulary {
   URI DELETED = LDP_NS.resolve("#DeletedResource");
   URI DIRECT_CONTAINER = LDP_NS.resolve("#DirectContainer");
   URI HAS_MEMBER_RELATION = LDP_NS.resolve("#hasMemberRelation");
+  URI HTTP_CONTENT_LENGTH = HTTP_HEADERS_NS.resolve("#content-length");
+  URI HTTP_CONTENT_TYPE = HTTP_HEADERS_NS.resolve("#content-type");
+  URI HTTP_LAST_MODIFIED = HTTP_HEADERS_NS.resolve("#last-modified");
+  URI IANA_CANONICAL = IANA_NS.resolve("canonical");
   URI IANA_MEMENTO = IANA_NS.resolve("memento");
   URI IANA_ORIGINAL = IANA_NS.resolve("original");
   URI IANA_TIMEMAP = IANA_NS.resolve("timemap");

@@ -10,6 +10,10 @@ public interface Vocabulary {
   URI CONTAINS = new URIImpl(cavendish.ldp.api.Vocabulary.CONTAINS.toString());
   URI DELETED = new URIImpl(cavendish.ldp.api.Vocabulary.DELETED.toString());
   URI DIRECT_CONTAINER = new URIImpl(cavendish.ldp.api.Vocabulary.DIRECT_CONTAINER.toString());
+  URI HTTP_CONTENT_LENGTH = new URIImpl(cavendish.ldp.api.Vocabulary.HTTP_CONTENT_LENGTH.toString());
+  URI HTTP_CONTENT_TYPE = new URIImpl(cavendish.ldp.api.Vocabulary.HTTP_CONTENT_TYPE.toString());
+  URI HTTP_LAST_MODIFIED = new URIImpl(cavendish.ldp.api.Vocabulary.HTTP_LAST_MODIFIED.toString());
+  URI IANA_CANONICAL = new URIImpl(cavendish.ldp.api.Vocabulary.IANA_CANONICAL.toString());
   URI IANA_MEMENTO = new URIImpl(cavendish.ldp.api.Vocabulary.IANA_MEMENTO.toString());
   URI IANA_ORIGINAL = new URIImpl(cavendish.ldp.api.Vocabulary.IANA_ORIGINAL.toString());
   URI IANA_TIMEMAP = new URIImpl(cavendish.ldp.api.Vocabulary.IANA_TIMEMAP.toString());
