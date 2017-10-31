@@ -10,6 +10,12 @@ public interface Vocabulary {
   URI CONTAINS = new URIImpl(cavendish.ldp.api.Vocabulary.CONTAINS.toString());
   URI DELETED = new URIImpl(cavendish.ldp.api.Vocabulary.DELETED.toString());
   URI DIRECT_CONTAINER = new URIImpl(cavendish.ldp.api.Vocabulary.DIRECT_CONTAINER.toString());
+  URI HTTP_CONTENT_LENGTH = new URIImpl(cavendish.ldp.api.Vocabulary.HTTP_CONTENT_LENGTH.toString());
+  URI HTTP_CONTENT_TYPE = new URIImpl(cavendish.ldp.api.Vocabulary.HTTP_CONTENT_TYPE.toString());
+  URI HTTP_DIGEST = new URIImpl(cavendish.ldp.api.Vocabulary.HTTP_DIGEST.toString());
+  URI HTTP_ETAG = new URIImpl(cavendish.ldp.api.Vocabulary.HTTP_ETAG.toString());
+  URI HTTP_LAST_MODIFIED = new URIImpl(cavendish.ldp.api.Vocabulary.HTTP_LAST_MODIFIED.toString());
+  URI IANA_CANONICAL = new URIImpl(cavendish.ldp.api.Vocabulary.IANA_CANONICAL.toString());
   URI IANA_MEMENTO = new URIImpl(cavendish.ldp.api.Vocabulary.IANA_MEMENTO.toString());
   URI IANA_ORIGINAL = new URIImpl(cavendish.ldp.api.Vocabulary.IANA_ORIGINAL.toString());
   URI IANA_TIMEMAP = new URIImpl(cavendish.ldp.api.Vocabulary.IANA_TIMEMAP.toString());
@@ -20,6 +26,7 @@ public interface Vocabulary {
   URI MEMBERSHIP_RESOURCE = new URIImpl(cavendish.ldp.api.Vocabulary.MEMBERSHIP_RESOURCE.toString());
   URI MEMENTO_MEMENTO = new URIImpl(cavendish.ldp.api.Vocabulary.MEMENTO_MEMENTO.toString());
   URI MEMENTO_TIMEMAP = new URIImpl(cavendish.ldp.api.Vocabulary.MEMENTO_TIMEMAP.toString());
+  URI NON_RDF_SOURCE = new URIImpl(cavendish.ldp.api.Vocabulary.NON_RDF_SOURCE.toString());
   URI RDF_SOURCE = new URIImpl(cavendish.ldp.api.Vocabulary.RDF_SOURCE.toString());
   URI RESOURCE = new URIImpl(cavendish.ldp.api.Vocabulary.RESOURCE.toString());
   String DEFAULT_NS = cavendish.ldp.api.Vocabulary.DEFAULT_NS;

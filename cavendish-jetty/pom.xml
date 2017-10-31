@@ -58,6 +58,12 @@
     </dependency>
     <dependency>
       <groupId>cavendish</groupId>
+      <artifactId>cavendish-ldp</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>cavendish</groupId>
       <artifactId>cavendish-blazegraph</artifactId>
       <scope>compile</scope>
     </dependency>

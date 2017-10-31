@@ -6,17 +6,9 @@ import cavendish.ldp.api.RdfSource;
 
 import com.bigdata.resources.IndexManager;
 
-public class RdfSourceImpl implements RdfSource {
-
-  private URI uri;
-  private IndexManager index;
+public class RdfSourceImpl extends ResourceImpl implements RdfSource {
 
   public RdfSourceImpl(URI uri, IndexManager index) {
-		initialize(uri, index);
-	}
-
-	protected void initialize(URI uri, IndexManager index) {
-    this.uri = uri;
-    this.index = index;
+		super(uri, index);
 	}
 }

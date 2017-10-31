@@ -29,6 +29,12 @@
       </dependency>
       <dependency>
         <groupId>cavendish</groupId>
+        <artifactId>cavendish-ldp</artifactId>
+        <type>test-jar</type>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>cavendish</groupId>
         <artifactId>cavendish-blazegraph</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -238,6 +244,23 @@
             </instructions>
           </configuration>
         </plugin>
+        <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.0.2</version>
+        <configuration>
+          <archive>
+            <manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+          </archive>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
         <plugin>
           <groupId>org.eclipse.jetty</groupId>
           <artifactId>jetty-maven-plugin</artifactId>
