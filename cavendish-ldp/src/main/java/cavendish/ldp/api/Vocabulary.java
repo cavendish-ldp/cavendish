@@ -18,6 +18,8 @@ public interface Vocabulary {
   URI HAS_MEMBER_RELATION = LDP_NS.resolve("#hasMemberRelation");
   URI HTTP_CONTENT_LENGTH = HTTP_HEADERS_NS.resolve("#content-length");
   URI HTTP_CONTENT_TYPE = HTTP_HEADERS_NS.resolve("#content-type");
+  URI HTTP_DIGEST = HTTP_HEADERS_NS.resolve("#digest");
+  URI HTTP_ETAG = HTTP_HEADERS_NS.resolve("#etag");
   URI HTTP_LAST_MODIFIED = HTTP_HEADERS_NS.resolve("#last-modified");
   URI IANA_CANONICAL = IANA_NS.resolve("canonical");
   URI IANA_MEMENTO = IANA_NS.resolve("memento");
