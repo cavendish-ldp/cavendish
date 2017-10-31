@@ -15,10 +15,15 @@ public interface LdpHeaders extends HttpHeaders {
   public static final String ACCEPT_POST = "Accept-Post";
 
   /**
+   * See {@link <a href="https://tools.ietf.org/html/rfc3230#section-4.3.2">RFC 4229</a>}.
+   */
+  public static final String DIGEST = "Digest";
+
+  /**
    * See {@link <a href="https://tools.ietf.org/html/rfc7240#section-2">RFC 7240</a>}.
    */
   public static final String PREFER = "Prefer";
-  
+
   /**
    * See {@link <a href="https://tools.ietf.org/html/rfc7240#section-3">RFC 7240</a>}.
    */
@@ -28,4 +33,9 @@ public interface LdpHeaders extends HttpHeaders {
    * See {@link <a href="https://tools.ietf.org/html/rfc5023#section-9.7">RFC 5023</a>}.
    */
   public static final String SLUG = "Slug";
+
+  /**
+   * See {@link <a href="https://tools.ietf.org/html/rfc3230#section-4.3.1">RFC 4229</a>}.
+   */
+  public static final String WANT_DIGEST = "Want-Digest";
 }
