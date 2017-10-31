@@ -2,17 +2,26 @@ package cavendish.jetty.handler;
 
 import static cavendish.ldp.api.Vocabulary.InteractionType;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.URL;
 import java.nio.charset.Charset;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -33,16 +42,32 @@ import javax.ws.rs.NotSupportedException;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Link;
 
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.input.CountingInputStream;
+import org.apache.http.Header;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpHead;
+import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.entity.ContentType;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
+import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.http.HttpURI;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.AbstractHandler;
+import org.eclipse.jetty.util.B64Code;
 import org.jboss.resteasy.util.AcceptParser;
+import org.openrdf.model.Literal;
 import org.openrdf.model.Statement;
 import org.openrdf.model.URI;
+import org.openrdf.model.Value;
 import org.openrdf.model.impl.ContextStatementImpl;
+import org.openrdf.model.impl.LiteralImpl;
 import org.openrdf.model.impl.URIImpl;
 import org.openrdf.query.algebra.UpdateExpr;
 import org.openrdf.query.parser.ParsedUpdate;
@@ -59,7 +84,9 @@ import cavendish.blazegraph.rdf.BufferStatementsHandler;
 import cavendish.blazegraph.rdf.ConstraintViolationException;
 import cavendish.blazegraph.task.DeleteRdfSourceTask;
 import cavendish.blazegraph.task.InsertMementoTask;
+import cavendish.blazegraph.task.InsertNonRdfResourceTask;
 import cavendish.blazegraph.task.InsertRdfSourceTask;
+import cavendish.blazegraph.task.InsertResourceTask;
 import cavendish.blazegraph.task.InteractionModelsQueryTask;
 import cavendish.blazegraph.task.LdpResourceExistsTask;
 import cavendish.blazegraph.task.RDFFormattable;
@@ -69,11 +96,13 @@ import cavendish.blazegraph.task.UpdateRdfSourceTask;
 import cavendish.jetty.ContentTypes;
 import cavendish.ldp.api.LdpHeaders;
 import cavendish.ldp.api.SerializationPreference;
+import cavendish.ldp.digest.DigestsForStream;
 import cavendish.ldp.impl.Prefer;
 
 import com.bigdata.journal.IBufferStrategy;
 import com.bigdata.journal.IIndexManager;
 import com.bigdata.rdf.axioms.NoAxioms;
+import com.bigdata.rdf.internal.XSD;
 import com.bigdata.rdf.sail.BigdataSail;
 import com.bigdata.rdf.sail.CreateKBTask;
 import com.bigdata.rdf.sail.sparql.Bigdata2ASTSPARQLParser;
@@ -81,6 +110,7 @@ import com.bigdata.rdf.sail.webapp.NanoSparqlServer;
 import com.bigdata.rdf.store.AbstractTripleStore;
 import com.bigdata.rdf.task.AbstractApiTask;
 import com.github.jsonldjava.sesame.SesameJSONLDParser;
+import com.ibm.icu.text.DateFormat;
 
 import org.openrdf.model.vocabulary.RDF;
 
@@ -101,6 +131,9 @@ public class LdpHandler extends AbstractHandler {
   private IIndexManager indexManager;
 
   private final String[] rootPaths;
+
+  private final HttpClientBuilder httpClients = HttpClientBuilder.create();
+
   public LdpHandler() {
     this(new String[]{LDP_PATH});
   }
@@ -248,39 +281,39 @@ public class LdpHandler extends AbstractHandler {
     SerializationPreference prefs = (request.getHeader(LdpHeaders.PREFER) != null) ?
         Prefer.parse(request.getHeader(LdpHeaders.PREFER)) : (containerType == InteractionType.TIMEMAP) ?
             SubjectStatementsQueryTask.DEFAULT_TIMEMAP_PREFS : SubjectStatementsQueryTask.DEFAULT_PREFS;
-    LOG.debug("Prefer: >>{}<<", prefs);
+        LOG.debug("Prefer: >>{}<<", prefs);
 
-    if (!path.equals("")) {
-      int sc = resourceStatus(subject,timestamp);
-      switch(sc) {
-      case HttpServletResponse.SC_GONE:
+        if (!path.equals("")) {
+          int sc = resourceStatus(subject,timestamp);
+          switch(sc) {
+          case HttpServletResponse.SC_GONE:
+            response.setContentType(ct.getMimeType());
+            response.setStatus(HttpServletResponse.SC_GONE);
+            response.setContentLength(0);
+            return;
+          case HttpServletResponse.SC_NOT_FOUND:
+            throw new NotFoundException(this.requestResource(request));
+          }
+        }
+
+        SubjectStatementsQueryTask task = new SubjectStatementsQueryTask(DEFAULT_NS, timestamp, false, subject, prefs);
+        stmts = AbstractApiTask.submitApiTask(indexManager, task).get();
+        responseLinkHeader(subject, request, response, timestamp);
+
+        if (prefs.wasAcknowledged()) response.addHeader(LdpHeaders.PREFERENCE_APPLIED, "return=representation");
+        response.addHeader(ETAG, weakETag(subject.toString()));
+
+        optionsHeaders(response, containerType);
         response.setContentType(ct.getMimeType());
-        response.setStatus(HttpServletResponse.SC_GONE);
-        response.setContentLength(0);
-        return;
-      case HttpServletResponse.SC_NOT_FOUND:
-        throw new NotFoundException(this.requestResource(request));
-      }
-    }
 
-    SubjectStatementsQueryTask task = new SubjectStatementsQueryTask(DEFAULT_NS, timestamp, false, subject, prefs);
-    stmts = AbstractApiTask.submitApiTask(indexManager, task).get();
-    responseLinkHeader(subject, request, response, timestamp);
-
-    if (prefs.wasAcknowledged()) response.addHeader(LdpHeaders.PREFERENCE_APPLIED, "return=representation");
-    response.addHeader(ETAG, weakETag(subject.toString()));
-
-    optionsHeaders(response, containerType);
-    response.setContentType(ct.getMimeType());
-
-    RDFWriter writer = RDFFormattable.getResponseWriter(ct.getMimeType(), response.getOutputStream());
-    writer.startRDF();
-    while (stmts.hasNext()) {
-      Statement stmt = stmts.next();
-      writer.handleStatement(stmt);
-    }
-    writer.endRDF();
-    response.getOutputStream().flush();
+        RDFWriter writer = RDFFormattable.getResponseWriter(ct.getMimeType(), response.getOutputStream());
+        writer.startRDF();
+        while (stmts.hasNext()) {
+          Statement stmt = stmts.next();
+          writer.handleStatement(stmt);
+        }
+        writer.endRDF();
+        response.getOutputStream().flush();
   }
 
   protected void doHEAD(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
@@ -327,6 +360,7 @@ public class LdpHandler extends AbstractHandler {
         if (ixnModel.endsWith("TimeMap")) return InteractionType.TIMEMAP;
         if (ixnModel.endsWith("Container")) return InteractionType.CONTAINER;
         if (ixnModel.endsWith("Memento")) return InteractionType.MEMENTO;
+        if (ixnModel.endsWith("NonRDFSource")) return InteractionType.NONRDFSOURCE;
         if (ixnModel.endsWith("RDFSource")) return InteractionType.RDFSOURCE;
         return InteractionType.RESOURCE;
       }
@@ -337,6 +371,8 @@ public class LdpHandler extends AbstractHandler {
         if (o1 == o2) return 0;
         if (o1 == InteractionType.TIMEMAP) return 1;
         if (o2 == InteractionType.TIMEMAP) return -1;
+        if (o1 == InteractionType.NONRDFSOURCE) return 1;
+        if (o2 == InteractionType.NONRDFSOURCE) return -1;
         if (o1 == InteractionType.CONTAINER) return 1;
         if (o2 == InteractionType.CONTAINER) return -1;
         if (o1 == InteractionType.MEMENTO) return 1;
@@ -422,15 +458,48 @@ public class LdpHandler extends AbstractHandler {
 
   private void createResource(URIImpl resourceToCreate, HttpServletRequest request, HttpServletResponse response)
       throws Exception {
-    BufferStatementsHandler buffer = parseRDFBody(request, resourceToCreate.stringValue());
-    ianaTypeStatements(request, resourceToCreate, buffer);
+    BufferStatementsHandler buffer = new BufferStatementsHandler();
 
-    InsertRdfSourceTask task = new InsertRdfSourceTask(DEFAULT_NS, true, resourceToCreate, buffer.iterate());
+    ianaTypeStatements(request, resourceToCreate, buffer);
+    InteractionType ixnModel = reduceModels(buffer.stream());
+
+    if (ixnModel == InteractionType.NONRDFSOURCE) {
+      // set iana:canonical to be the URL parameter
+      Enumeration<String> contentTypes = request.getHeaders(HttpHeaders.CONTENT_TYPE);
+      String canonical = null;
+      ContentType contentType = null;
+      while (contentTypes.hasMoreElements()) {
+        ContentType ct = ContentType.parse(contentTypes.nextElement());
+        if (ct.getMimeType().equalsIgnoreCase("message/external-body")) {
+          if (ct.getParameter("access-type").equals("URL")) {
+            canonical = ct.getParameter("URL");
+          }
+        } else {
+          contentType = ct;
+        }
+      }
+      if (canonical == null) {
+        throw new BadRequestException("No canonical non-RDF external-body location provided");
+      }
+      if (contentType == null) {
+        throw new BadRequestException("non-RDF external-body must be accompanied by actual Content-Type");
+      }
+
+    } else {
+      parseRDFBody(request, resourceToCreate.stringValue(), buffer);
+    }
+
+    InsertResourceTask task;
+    switch(ixnModel) {
+    case NONRDFSOURCE:
+      task = new InsertNonRdfResourceTask(DEFAULT_NS, true, resourceToCreate, buffer.iterate());
+    default:
+      task = new InsertRdfSourceTask(DEFAULT_NS, true, resourceToCreate, buffer.iterate());
+    }
     AbstractApiTask.submitApiTask(indexManager, task).get();
     response.setStatus(HttpServletResponse.SC_CREATED);
     response.setHeader(HttpHeaders.LOCATION, resourceToCreate.stringValue());
     responseLinkHeader(resourceToCreate, request, response, indexManager.getLastCommitTime());
-    response.setContentType("text/turtle");
   }
 
   private void createMemento(URIImpl timemap, HttpServletRequest request, HttpServletResponse response)
@@ -479,7 +548,9 @@ public class LdpHandler extends AbstractHandler {
       }
     }
 
-    BufferStatementsHandler buffer = parseRDFBody(request, resource);
+    BufferStatementsHandler buffer = new BufferStatementsHandler();
+
+    parseRDFBody(request, resource, buffer);
     URIImpl subject = new URIImpl(resource);
     ianaTypeStatements(request, subject, buffer);
     for (Statement s: buffer.statements()) {
@@ -506,7 +577,7 @@ public class LdpHandler extends AbstractHandler {
     out.flush();
   }
 
-  protected BufferStatementsHandler parseRDFBody(HttpServletRequest request, String resource)
+  protected BufferStatementsHandler parseRDFBody(HttpServletRequest request, String resource, BufferStatementsHandler buffer)
       throws Exception {
     ContentType ct = requestContentType(request);
     // insert the new context
@@ -521,7 +592,6 @@ public class LdpHandler extends AbstractHandler {
     }
 
     ServletInputStream is = request.getInputStream();
-    BufferStatementsHandler buffer = new BufferStatementsHandler();
     parser.setRDFHandler(buffer);
     parser.parse(is, resource);
     return buffer;
@@ -741,6 +811,68 @@ public class LdpHandler extends AbstractHandler {
     }
   }
 
+  static void externalBodyStatements(URIImpl subject, BufferStatementsHandler buffer,
+      String bodyLocation, ContentType contentType) throws Exception {
+    long bodyContentLength = -1;
+    Map<String, String> bodyDigest = null;
+    long bodyLastModified = -1;
+    String bodyETag = null;
+    URL canonical = new URL(bodyLocation);
+
+    if (canonical.getProtocol().equalsIgnoreCase("file")) {
+      File localFile = new File(canonical.getPath());
+      if (!localFile.exists()) {
+        throw new BadRequestException("external resource body dos not exist: " + bodyLocation);
+      }
+      bodyContentLength = localFile.length();
+      bodyLastModified = localFile.lastModified();
+      bodyDigest = DigestsForStream.digestsForStream(new FileInputStream(localFile));
+    } else if (canonical.getProtocol().toLowerCase().startsWith("http")) {
+      try(CloseableHttpClient http = HttpClients.createDefault()) {
+        HttpUriRequest head = new HttpGet(bodyLocation);
+        try(CloseableHttpResponse response = http.execute(head)) {
+          Header contentLength = response.getFirstHeader(HttpHeaders.CONTENT_LENGTH);
+          if (contentLength == null || Long.parseLong(contentLength.getValue()) < 0) {
+            throw new BadRequestException("Content-Length is required by external resource body: " + bodyLocation);
+          } else {
+            bodyContentLength = Long.parseLong(contentLength.getValue());
+          }
+          Header lastModified = response.getFirstHeader(HttpHeaders.LAST_MODIFIED);
+          if (lastModified != null) {
+            // "Wed, 21 Oct 2015 07:28:00 GMT"
+            bodyLastModified = DateFormat.getPatternInstance("EEE, dd MMM yyyy HH:mm:ss z").parse(lastModified.getValue()).getTime();
+          }
+          if (response.getFirstHeader(HttpHeaders.ETAG) != null) bodyETag = response.getFirstHeader(HttpHeaders.ETAG).getValue();
+          if (bodyETag == null && bodyLastModified == -1) {
+            throw new BadRequestException("Last-Modified or ETag required by external resource body: " + bodyLocation);
+          }
+          CountingInputStream byteCounter = new CountingInputStream(response.getEntity().getContent());
+          bodyDigest = DigestsForStream.digestsForStream(byteCounter);
+          bodyContentLength = byteCounter.getByteCount();
+        }
+        if (bodyLastModified != -1) {
+          URIImpl datatype = new URIImpl(XSD.LONG.toString());
+          Literal value = new LiteralImpl(Long.toString(bodyLastModified), datatype);
+          buffer.handleStatement(new ContextStatementImpl(subject, cavendish.blazegraph.ldp.Vocabulary.HTTP_LAST_MODIFIED, value, Vocabulary.INTERNAL_CONTEXT));
+        }
+        if (bodyETag != null) {
+          Literal value = new LiteralImpl(bodyETag);
+          buffer.handleStatement(new ContextStatementImpl(subject, cavendish.blazegraph.ldp.Vocabulary.HTTP_ETAG, value, Vocabulary.INTERNAL_CONTEXT));
+        }
+        for (Entry<String, String> entry:bodyDigest.entrySet()) {
+          Literal value = new LiteralImpl(entry.getValue());
+          buffer.handleStatement(new ContextStatementImpl(subject, cavendish.blazegraph.ldp.Vocabulary.HTTP_DIGEST, value, Vocabulary.INTERNAL_CONTEXT));
+        }
+        Literal value = new LiteralImpl(Long.toString(bodyContentLength), new URIImpl(XSD.LONG.toString()));
+        buffer.handleStatement(new ContextStatementImpl(subject, cavendish.blazegraph.ldp.Vocabulary.HTTP_CONTENT_LENGTH, value, Vocabulary.INTERNAL_CONTEXT));
+      }
+    } else {
+      throw new BadRequestException("Only http, https, and file bodyLocations are supported");
+    }
+    buffer.handleStatement(new ContextStatementImpl(subject, cavendish.blazegraph.ldp.Vocabulary.IANA_CANONICAL, new URIImpl(bodyLocation), Vocabulary.INTERNAL_CONTEXT));
+    buffer.handleStatement(new ContextStatementImpl(subject, cavendish.blazegraph.ldp.Vocabulary.HTTP_CONTENT_TYPE, new LiteralImpl(contentType.getMimeType()), Vocabulary.INTERNAL_CONTEXT));
+
+  }
   static String constraintsUri(HttpServletRequest request) {
     HttpURI httpUri = HttpURI.createHttpURI(request.getScheme(),request.getLocalName(),request.getLocalPort(),CONSTRAINTS_PATH,null,null,null);
     return httpUri.toString();
